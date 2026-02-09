@@ -20,6 +20,7 @@ const mockHotkeys: HotkeySettings = {
   recentNode4: { key: '4', modifiers: ['Meta'] },
   recentNode5: { key: '5', modifiers: ['Meta'] },
   voiceRecording: { key: 'r', modifiers: ['Alt'] },
+  cycleLayout: { key: 'l', modifiers: ['Meta'] },
 };
 
 describe('HotkeyManager', () => {

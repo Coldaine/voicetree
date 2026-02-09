@@ -6,12 +6,21 @@
  * - Reuses existing CSS from speed-dial-side-graph-floating-menu.css
  * - Provides callbacks for menu actions
  * - Supports dark mode icon toggling
+ * - Supports layout mode toggling (force-directed / hierarchical)
  * - Extends Disposable for proper cleanup
  */
 
 import { Disposable } from './Disposable';
-// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import './styles/speed-dial-side-graph-floating-menu.css';
+import {
+  cycleLayoutMode,
+  getLayoutMode,
+  onLayoutModeChange,
+  LAYOUT_MODE_LABELS,
+  type LayoutMode
+} from '@/shell/edge/UI-edge/state/LayoutModeStore';
+
+type IconName = 'sun' | 'moon' | 'settings' | 'info' | 'bar-chart' | 'message-square' | 'layout-grid' | 'layout-tree-tb' | 'layout-tree-lr';
 
 export interface SpeedDialMenuViewOptions {
   onToggleDarkMode: () => void;
@@ -25,9 +34,18 @@ export interface SpeedDialMenuViewOptions {
 interface MenuItem {
   id: string;
   label: string;
-  iconName: 'sun' | 'moon' | 'settings' | 'info' | 'bar-chart' | 'message-square';
+  iconName: IconName;
   onClick: () => void;
   isDanger?: boolean;
+}
+
+/** Map layout mode to the icon that represents it */
+function getLayoutIconName(mode: LayoutMode): IconName {
+  switch (mode) {
+    case 'force-directed': return 'layout-grid';
+    case 'hierarchical-TB': return 'layout-tree-tb';
+    case 'hierarchical-LR': return 'layout-tree-lr';
+  }
 }
 
 export class SpeedDialSideGraphFloatingMenuView extends Disposable {
@@ -37,11 +55,14 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   private menuItems: MenuItem[];
   private buttonElements: HTMLButtonElement[] = [];
   private hoveredIndex: number | null = null;
+  private unsubscribeLayoutMode: (() => void) | null = null;
 
   constructor(container: HTMLElement, options: SpeedDialMenuViewOptions) {
     super();
     this.container = container;
     this.options = options;
+
+    const currentLayoutMode = getLayoutMode();
 
     // Define menu items
     this.menuItems = [
@@ -50,6 +71,12 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
         label: options.isDarkMode ? 'Light Mode' : 'Dark Mode',
         iconName: options.isDarkMode ? 'sun' : 'moon',
         onClick: options.onToggleDarkMode,
+      },
+      {
+        id: 'layout-mode',
+        label: LAYOUT_MODE_LABELS[currentLayoutMode],
+        iconName: getLayoutIconName(currentLayoutMode),
+        onClick: () => { cycleLayoutMode(); },
       },
       {
         id: 'settings',
@@ -83,6 +110,11 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
 
     // Setup event listeners
     this.setupEventListeners();
+
+    // Subscribe to layout mode changes to update button appearance
+    this.unsubscribeLayoutMode = onLayoutModeChange((mode) => {
+      this.updateLayoutModeButton(mode);
+    });
   }
 
   /**
@@ -135,7 +167,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   /**
    * Create an SVG icon element
    */
-  private createIcon(name: 'sun' | 'moon' | 'settings' | 'info' | 'bar-chart' | 'message-square'): SVGElement {
+  private createIcon(name: IconName): SVGElement {
     const svg: SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'speed-dial-icon');
     svg.setAttribute('width', '20');
@@ -161,13 +193,44 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
       info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
       'bar-chart': ['M12 20V10', 'M18 20V4', 'M6 20v-4'],
       'message-square': ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+      // Layout icons - force-directed (scatter/organic), hierarchical TB (tree top-down), hierarchical LR (tree left-right)
+      'layout-grid': [
+        // Scatter/organic layout icon: nodes at various positions with connecting lines
+        'M5 5h2v2H5zM17 5h2v2h-2zM11 11h2v2h-2zM5 17h2v2H5zM17 17h2v2h-2z',
+        'M7 6l4 5M13 12l4-5M7 18l4-5M13 12l4 5',
+      ],
+      'layout-tree-tb': [
+        // Top-down tree icon
+        'M12 3v6M12 15v6M5 9h14M5 9v0M19 9v0M5 15h14',
+        'M12 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M5 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M19 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M5 16a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M12 16a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M19 16a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        'M12 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+      ],
+      'layout-tree-lr': [
+        // Left-right tree icon
+        'M3 12h6M15 12h6M9 5v14M9 5v0M9 19v0M15 5v14',
+        'M3 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M10 5a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M10 19a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M16 5a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M16 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M16 19a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+        'M22 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0z',
+      ],
     };
 
-    paths[name].forEach((d) => {
-      const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      svg.appendChild(path);
-    });
+    const iconPaths = paths[name];
+    if (iconPaths) {
+      iconPaths.forEach((d) => {
+        const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        svg.appendChild(path);
+      });
+    }
 
     return svg;
   }
@@ -266,7 +329,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
     if (!button) return;
 
     // Update icon and label
-    const newIconName: "sun" | "moon" = isDarkMode ? 'sun' : 'moon';
+    const newIconName: IconName = isDarkMode ? 'sun' : 'moon';
     const newLabel: "Light Mode" | "Dark Mode" = isDarkMode ? 'Light Mode' : 'Dark Mode';
 
     // Update menu item data
@@ -290,11 +353,51 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   }
 
   /**
+   * Update layout mode button icon and label when mode changes
+   */
+  private updateLayoutModeButton(mode: LayoutMode): void {
+    const layoutItem: MenuItem | undefined = this.menuItems.find((item) => item.id === 'layout-mode');
+    if (!layoutItem) return;
+
+    const layoutIndex: number = this.menuItems.indexOf(layoutItem);
+    const button: HTMLButtonElement = this.buttonElements[layoutIndex];
+    if (!button) return;
+
+    const newIconName: IconName = getLayoutIconName(mode);
+    const newLabel: string = LAYOUT_MODE_LABELS[mode];
+
+    // Update menu item data
+    layoutItem.iconName = newIconName;
+    layoutItem.label = newLabel;
+
+    // Update DOM
+    const icon: Element | null = button.querySelector('.speed-dial-icon');
+    const label: Element | null = button.querySelector('.speed-dial-label');
+
+    if (icon) {
+      const newIcon: SVGElement = this.createIcon(newIconName);
+      icon.replaceWith(newIcon);
+    }
+
+    if (label) {
+      label.textContent = newLabel;
+    }
+
+    button.setAttribute('aria-label', newLabel);
+  }
+
+  /**
    * Cleanup resources
    */
   dispose(): void {
     if (this.isDisposed) {
       return;
+    }
+
+    // Unsubscribe from layout mode changes
+    if (this.unsubscribeLayoutMode) {
+      this.unsubscribeLayoutMode();
+      this.unsubscribeLayoutMode = null;
     }
 
     // Remove from DOM

@@ -28,14 +28,15 @@ export interface SetupCytoscapeParams {
 export function setupCytoscape(params: SetupCytoscapeParams): {
     horizontalMenuService: HorizontalMenuService;
     verticalMenuService: VerticalMenuService;
+    cleanupAutoLayout: () => void;
 } {
     const {
         cy,
         onNodeSelected,
     } = params;
 
-    // Enable auto-layout
-    enableAutoLayout(cy);
+    // Enable auto-layout (capture cleanup for disposal)
+    const cleanupAutoLayout: () => void = enableAutoLayout(cy);
     //console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
 
     // Listen to layout completion
@@ -75,5 +76,5 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             handleAddNodeAtPosition(cy, position)
     });
 
-    return { horizontalMenuService, verticalMenuService };
+    return { horizontalMenuService, verticalMenuService, cleanupAutoLayout };
 }
