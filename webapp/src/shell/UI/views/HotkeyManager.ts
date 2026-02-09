@@ -14,6 +14,7 @@ import type {} from '@/shell/electron';
 import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
 import type { HotkeySettings, HotkeyBinding, VTSettings } from '@/pure/settings/types';
 import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
+import { cycleLayoutMode } from '@/shell/edge/UI-edge/state/LayoutModeStore';
 
 export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -223,6 +224,15 @@ export class HotkeyManager {
       modifiers: [...hotkeys.openSearchAlt.modifiers] as Modifier[],
       onPress: callbacks.openSearch
     });
+
+    // Cycle layout mode (force-directed → hierarchical TB → hierarchical LR)
+    if (hotkeys.cycleLayout) {
+      this.registerHotkey({
+        key: hotkeys.cycleLayout.key,
+        modifiers: [...hotkeys.cycleLayout.modifiers] as Modifier[],
+        onPress: () => { cycleLayoutMode(); }
+      });
+    }
   }
 
   /**

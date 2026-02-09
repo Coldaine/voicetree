@@ -38,9 +38,13 @@ import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
+// @ts-expect-error - cytoscape-dagre doesn't have proper TypeScript definitions
+import cytoscapeDagre from 'cytoscape-dagre';
+
 // Register cytoscape extensions
 cytoscape.use(navigator);
 cytoscape.use(layoutUtilities);
+cytoscape.use(cytoscapeDagre);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';

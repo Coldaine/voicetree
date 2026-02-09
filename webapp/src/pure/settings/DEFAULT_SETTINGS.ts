@@ -18,6 +18,7 @@ const MAC_HOTKEYS: HotkeySettings = {
     recentNode4: { key: '4', modifiers: ['Meta'] },
     recentNode5: { key: '5', modifiers: ['Meta'] },
     voiceRecording: { key: 'r', modifiers: ['Alt'] },
+    cycleLayout: { key: 'l', modifiers: ['Meta'] },
 };
 
 /** Non-Mac defaults using Control key */
@@ -38,6 +39,7 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
     recentNode4: { key: '4', modifiers: ['Control'] },
     recentNode5: { key: '5', modifiers: ['Control'] },
     voiceRecording: { key: 'r', modifiers: ['Alt'] },
+    cycleLayout: { key: 'l', modifiers: ['Control'] },
 };
 
 const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');

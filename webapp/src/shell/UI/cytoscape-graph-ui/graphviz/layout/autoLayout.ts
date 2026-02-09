@@ -1,8 +1,13 @@
 /**
- * Auto Layout: Automatically run Cola layout on graph changes
+ * Auto Layout: Automatically run layout on graph changes
  *
- * Simple approach: Listen to cytoscape events (add/remove node/edge) and trigger layout.
- * No state tracking, no complexity - just re-layout the whole graph each time.
+ * Supports two layout engines:
+ * - Cola (force-directed): Physics-based organic layout (default)
+ * - Dagre (hierarchical): DAG/tree layout in top-down or left-right direction
+ *
+ * Layout mode is controlled by LayoutModeStore. When switching modes:
+ * - Switching TO hierarchical: saves current positions, runs Dagre
+ * - Switching BACK to force-directed: restores saved positions, runs Cola
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
@@ -17,6 +22,14 @@ import { DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import {
+  getLayoutMode,
+  onLayoutModeChange,
+  savePositionsFromCy,
+  restorePositionsToCy,
+  hasSavedPositions,
+  type LayoutMode
+} from '@/shell/edge/UI-edge/state/LayoutModeStore';
 
 // Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
 const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
@@ -63,19 +76,115 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
 };
 
 /**
+ * Get the Cytoscape elements to lay out, excluding context nodes and their edges.
+ */
+function getLayoutElements(cy: Core) {
+  return cy.elements().filter(ele => {
+    if (ele.isNode()) return !ele.data('isContextNode');
+    // Exclude edges connected to context nodes
+    return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
+  });
+}
+
+/**
+ * Run the Cola (force-directed) layout.
+ */
+function runColaLayout(
+  cy: Core,
+  colaOptions: AutoLayoutOptions,
+  onComplete: () => void
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layout: any = new (ColaLayout as any)({
+    cy: cy,
+    eles: getLayoutElements(cy),
+    animate: colaOptions.animate,
+    randomize: false, // Don't randomize - preserve existing positions
+    avoidOverlap: colaOptions.avoidOverlap,
+    handleDisconnected: colaOptions.handleDisconnected,
+    convergenceThreshold: colaOptions.convergenceThreshold,
+    maxSimulationTime: colaOptions.maxSimulationTime,
+    unconstrIter: colaOptions.unconstrIter,
+    userConstIter: colaOptions.userConstIter,
+    allConstIter: colaOptions.allConstIter,
+    nodeSpacing: colaOptions.nodeSpacing,
+    edgeLength: colaOptions.edgeLength,
+    edgeSymDiffLength: colaOptions.edgeSymDiffLength,
+    edgeJaccardLength: colaOptions.edgeJaccardLength,
+    centerGraph: false,
+    fit: false,
+    nodeDimensionsIncludeLabels: true,
+  });
+
+  layout.one('layoutstop', onComplete);
+  layout.run();
+}
+
+/**
+ * Run the Dagre (hierarchical) layout.
+ * Direction is determined by the current layout mode (TB or LR).
+ */
+function runDagreLayout(
+  cy: Core,
+  mode: LayoutMode,
+  onComplete: () => void
+): void {
+  const rankDir = mode === 'hierarchical-LR' ? 'LR' : 'TB';
+
+  const layout = cy.elements().filter(ele => {
+    if (ele.isNode()) return !ele.data('isContextNode');
+    return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
+  }).layout({
+    name: 'dagre',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rankDir: rankDir as any,
+    nodeSep: 80,
+    rankSep: 120,
+    edgeSep: 40,
+    animate: true,
+    animationDuration: 500,
+    animationEasing: 'ease-in-out-cubic',
+    fit: false,
+    padding: 50,
+    spacingFactor: 1.2,
+    nodeDimensionsIncludeLabels: true,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+
+  layout.one('layoutstop', onComplete);
+  layout.run();
+}
+
+/**
  * Enable automatic layout on graph changes
  *
- * Listens to node/edge add/remove events and triggers Cola layout
+ * Listens to node/edge add/remove events and triggers layout.
+ * Responds to layout mode changes from LayoutModeStore.
  *
  * @param cy Cytoscape instance
  * @param options Cola layout options
  * @returns Cleanup function to disable auto-layout
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
-  const colaOptions: { animate?: boolean; maxSimulationTime?: number; avoidOverlap?: boolean; nodeSpacing?: number; handleDisconnected?: boolean; convergenceThreshold?: number; unconstrIter?: number; userConstIter?: number; allConstIter?: number; edgeLength?: number | ((edge: EdgeSingular) => number); edgeSymDiffLength?: number | ((edge: EdgeSingular) => number); edgeJaccardLength?: number | ((edge: EdgeSingular) => number); } = { ...DEFAULT_OPTIONS, ...options };
+  const colaOptions = { ...DEFAULT_OPTIONS, ...options };
 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
+
+  const onLayoutComplete: () => void = () => {
+    void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    layoutRunning = false;
+
+    // Execute any pending pan after layout completes (instead of arbitrary timeout)
+    // This ensures viewport fits to new nodes only after their positions are finalized
+    consumePendingPan(cy);
+
+    // If another layout was queued, run it now
+    if (layoutQueued) {
+      layoutQueued = false;
+      runLayout();
+    }
+  };
 
   const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
@@ -89,53 +198,15 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       return;
     }
 
-    //console.log('[AutoLayout] Running Cola layout on', cy.nodes().length, 'nodes');
     layoutRunning = true;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const layout: any = new (ColaLayout as any)({
-      cy: cy,
-      // Exclude context nodes and their edges - position controlled by anchor-to-node.ts
-      eles: cy.elements().filter(ele => {
-        if (ele.isNode()) return !ele.data('isContextNode');
-        // Exclude edges connected to context nodes
-        return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
-      }),
-      animate: colaOptions.animate,
-      randomize: false, // Don't randomize - preserve existing positions
-      avoidOverlap: colaOptions.avoidOverlap,
-      handleDisconnected: colaOptions.handleDisconnected,
-      convergenceThreshold: colaOptions.convergenceThreshold,
-      maxSimulationTime: colaOptions.maxSimulationTime,
-      unconstrIter: colaOptions.unconstrIter,
-      userConstIter: colaOptions.userConstIter,
-      allConstIter: colaOptions.allConstIter,
-      nodeSpacing: colaOptions.nodeSpacing,
-      edgeLength: colaOptions.edgeLength,
-      edgeSymDiffLength: colaOptions.edgeSymDiffLength,
-      edgeJaccardLength: colaOptions.edgeJaccardLength,
-      centerGraph: false,
-      fit: false,
-      // padding: 0,
-      nodeDimensionsIncludeLabels: true,
-    });
+    const mode = getLayoutMode();
 
-    layout.one('layoutstop', () => {
-      //console.log('[AutoLayout] Cola layout complete');
-      void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
-      layoutRunning = false;
-
-      // Execute any pending pan after layout completes (instead of arbitrary timeout)
-      // This ensures viewport fits to new nodes only after their positions are finalized
-      consumePendingPan(cy);
-
-      // If another layout was queued, run it now
-      if (layoutQueued) {
-        layoutQueued = false;
-        runLayout();
-      }
-    });
-    layout.run();
+    if (mode === 'force-directed') {
+      runColaLayout(cy, colaOptions, onLayoutComplete);
+    } else {
+      runDagreLayout(cy, mode, onLayoutComplete);
+    }
   };
 
   // Debounce helper to avoid rapid-fire layouts
@@ -166,7 +237,22 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Register trigger for external callers (user-initiated resize)
   layoutTriggers.set(cy, debouncedRunLayout);
 
-  //console.log('[AutoLayout] Auto-layout enabled');
+  // Subscribe to layout mode changes from LayoutModeStore
+  const unsubscribeMode = onLayoutModeChange((newMode: LayoutMode) => {
+    if (newMode === 'force-directed') {
+      // Switching back to force-directed: restore saved positions, then run Cola
+      if (hasSavedPositions()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        restorePositionsToCy(cy as any);
+      }
+    } else {
+      // Switching to hierarchical: save current positions first (only if coming from force-directed)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      savePositionsFromCy(cy as any);
+    }
+    // Run layout immediately (no debounce) for user-triggered mode switch
+    runLayout();
+  });
 
   // Return cleanup function
   return () => {
@@ -175,11 +261,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
     layoutTriggers.delete(cy);
+    unsubscribeMode();
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
-
-    //console.log('[AutoLayout] Auto-layout disabled');
   };
 }

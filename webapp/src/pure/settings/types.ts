@@ -58,6 +58,7 @@ export interface HotkeySettings {
     readonly recentNode4: HotkeyBinding;
     readonly recentNode5: HotkeyBinding;
     readonly voiceRecording: HotkeyBinding; // Option+R toggle voice recording
+    readonly cycleLayout: HotkeyBinding; // Cmd+L cycle layout mode (force-directed / hierarchical)
 }
 
 export interface VTSettings {
