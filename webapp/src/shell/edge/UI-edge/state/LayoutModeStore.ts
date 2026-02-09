@@ -94,6 +94,13 @@ export function hasSavedPositions(): boolean {
     return savedPositions.size > 0;
 }
 
+/** Reset all state to defaults. For testing only. */
+export function _resetForTesting(): void {
+    currentMode = 'force-directed';
+    savedPositions = new Map();
+    listeners.clear();
+}
+
 function notifyListeners(): void {
     for (const listener of listeners) {
         listener(currentMode);
