@@ -6,7 +6,7 @@
  * Detects if the current platform is macOS
  */
 export function isMacPlatform(): boolean {
-    if (typeof navigator !== 'undefined') {
+    if (typeof navigator !== 'undefined' && typeof navigator.platform === 'string') {
         return navigator.platform.toLowerCase().includes('mac');
     }
     if (typeof process !== 'undefined' && process.platform) {

@@ -119,6 +119,15 @@ export function showFeedbackDialog(): Promise<string | null> {
         const submitBtn: HTMLButtonElement = dialog.querySelector('#feedback-submit')!;
         const skipBtn: HTMLButtonElement = dialog.querySelector('#feedback-skip')!;
 
+        // Track if promise has been settled to avoid double resolution
+        let settled: boolean = false;
+        const settle = (value: string | null): void => {
+            if (!settled) {
+                settled = true;
+                resolve(value);
+            }
+        };
+
         // Enable submit button only when there's content
         textarea.addEventListener('input', () => {
             const hasContent: boolean = textarea.value.trim().length > 0;
@@ -128,19 +137,21 @@ export function showFeedbackDialog(): Promise<string | null> {
         });
 
         dialog.addEventListener('close', () => {
+            // Ensure promise resolves even if dialog is closed by ESC or other means
+            settle(null);
             dialog.remove();
         });
 
         dialog.addEventListener('submit', (e: Event) => {
             e.preventDefault();
             const feedback: string = textarea.value.trim();
+            settle(feedback || null);
             dialog.close();
-            resolve(feedback || null);
         });
 
         skipBtn.addEventListener('click', () => {
+            settle(null);
             dialog.close();
-            resolve(null);
         });
 
         dialog.showModal();
