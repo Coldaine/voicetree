@@ -82,6 +82,19 @@ export function showFeedbackDialog(): Promise<string | null> {
                 ></textarea>
                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
                     <button
+                        type="button"
+                        id="feedback-skip"
+                        style="
+                            padding: 8px 16px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: transparent;
+                            color: var(--muted-foreground);
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        "
+                    >Skip</button>
+                    <button
                         type="submit"
                         id="feedback-submit"
                         disabled
@@ -104,6 +117,7 @@ export function showFeedbackDialog(): Promise<string | null> {
 
         const textarea: HTMLTextAreaElement = dialog.querySelector('#feedback-input')!;
         const submitBtn: HTMLButtonElement = dialog.querySelector('#feedback-submit')!;
+        const skipBtn: HTMLButtonElement = dialog.querySelector('#feedback-skip')!;
 
         // Enable submit button only when there's content
         textarea.addEventListener('input', () => {
@@ -124,9 +138,9 @@ export function showFeedbackDialog(): Promise<string | null> {
             resolve(feedback || null);
         });
 
-        // Prevent Escape key from closing dialog - user must submit or cancel
-        dialog.addEventListener('cancel', (e: Event) => {
-            e.preventDefault();
+        skipBtn.addEventListener('click', () => {
+            dialog.close();
+            resolve(null);
         });
 
         dialog.showModal();
