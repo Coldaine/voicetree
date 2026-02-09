@@ -93,6 +93,7 @@ import {
     toggleDarkMode as toggleDarkModeAction,
     isDarkMode as isDarkModeState
 } from '@/shell/edge/UI-edge/state/DarkModeManager';
+import {reset as resetLayoutModeStore} from '@/shell/edge/UI-edge/state/LayoutModeStore';
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 /**
@@ -120,6 +121,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // State
     private currentGraphState: Graph = createEmptyGraph();
+
+    // Auto-layout cleanup (unsubscribes from LayoutModeStore, removes cy event listeners)
+    private cleanupAutoLayout: (() => void) | null = null;
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
@@ -310,15 +314,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private setupCytoscape(): void {
-        const menuServices: { horizontalMenuService: HorizontalMenuService; verticalMenuService: VerticalMenuService; } = setupCytoscape({
+        const result = setupCytoscape({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
             onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
             getCurrentGraphState: () => this.getCurrentGraphState(),
         });
-        this.horizontalMenuService = menuServices.horizontalMenuService;
-        this.verticalMenuService = menuServices.verticalMenuService;
+        this.horizontalMenuService = result.horizontalMenuService;
+        this.verticalMenuService = result.verticalMenuService;
+        this.cleanupAutoLayout = result.cleanupAutoLayout;
     }
 
     /**
@@ -537,6 +542,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         if (this.verticalMenuService) {
             this.verticalMenuService.destroy();
         }
+
+        // Cleanup auto-layout (unsubscribes from LayoutModeStore, removes cy event listeners)
+        if (this.cleanupAutoLayout) {
+            this.cleanupAutoLayout();
+            this.cleanupAutoLayout = null;
+        }
+
+        // Reset layout mode store (clear saved positions and listeners for this graph lifecycle)
+        resetLayoutModeStore();
 
         // Dispose speed dial menu
         if (this.speedDialMenu) {

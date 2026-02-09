@@ -7,7 +7,7 @@
  *
  * Layout mode is controlled by LayoutModeStore. When switching modes:
  * - Switching TO hierarchical: saves current positions, runs Dagre
- * - Switching BACK to force-directed: restores saved positions, runs Cola
+ * - Switching BACK to force-directed: restores saved positions (no Cola re-run)
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
@@ -68,7 +68,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   unconstrIter: 15, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
   userConstIter: 15,
   allConstIter: 25,
-  edgeLength: (edge: EdgeSingular) => {
+  edgeLength: (_edge: EdgeSingular) => {
     return DEFAULT_EDGE_LENGTH;
   },
   // edgeSymDiffLength: undefined,
@@ -131,10 +131,7 @@ function runDagreLayout(
 ): void {
   const rankDir = mode === 'hierarchical-LR' ? 'LR' : 'TB';
 
-  const layout = cy.elements().filter(ele => {
-    if (ele.isNode()) return !ele.data('isContextNode');
-    return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
-  }).layout({
+  const layout = getLayoutElements(cy).layout({
     name: 'dagre',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rankDir: rankDir as any,
@@ -156,14 +153,14 @@ function runDagreLayout(
 }
 
 /**
- * Enable automatic layout on graph changes
+ * Enable automatic layout on graph changes.
  *
- * Listens to node/edge add/remove events and triggers layout.
- * Responds to layout mode changes from LayoutModeStore.
+ * Listens to node/edge add/remove events and triggers the appropriate layout
+ * engine (Cola for force-directed, Dagre for hierarchical) based on LayoutModeStore.
  *
  * @param cy Cytoscape instance
- * @param options Cola layout options
- * @returns Cleanup function to disable auto-layout
+ * @param options Layout options (currently applied to Cola only; Dagre uses its own defaults)
+ * @returns Cleanup function to disable auto-layout and unsubscribe from LayoutModeStore
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   const colaOptions = { ...DEFAULT_OPTIONS, ...options };
@@ -172,7 +169,12 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let layoutQueued: boolean = false;
 
   const onLayoutComplete: () => void = () => {
-    void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    // Only persist positions to disk in force-directed mode.
+    // Hierarchical positions are algorithmic and temporary — persisting them
+    // would overwrite the user's manual arrangement.
+    if (getLayoutMode() === 'force-directed') {
+      void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    }
     layoutRunning = false;
 
     // Execute any pending pan after layout completes (instead of arbitrary timeout)
@@ -240,18 +242,20 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Subscribe to layout mode changes from LayoutModeStore
   const unsubscribeMode = onLayoutModeChange((newMode: LayoutMode) => {
     if (newMode === 'force-directed') {
-      // Switching back to force-directed: restore saved positions, then run Cola
+      // Switching back to force-directed: restore saved positions.
+      // Do NOT re-run Cola — the restored positions are the user's manual arrangement.
       if (hasSavedPositions()) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         restorePositionsToCy(cy as any);
       }
+      // No runLayout() — positions are already where the user left them
     } else {
       // Switching to hierarchical: save current positions first (only if coming from force-directed)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       savePositionsFromCy(cy as any);
+      // Run Dagre immediately
+      runLayout();
     }
-    // Run layout immediately (no debounce) for user-triggered mode switch
-    runLayout();
   });
 
   // Return cleanup function

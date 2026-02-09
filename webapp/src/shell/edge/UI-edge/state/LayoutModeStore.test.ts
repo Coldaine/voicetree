@@ -8,12 +8,12 @@ import {
     restorePositionsToCy,
     hasSavedPositions,
     LAYOUT_MODE_LABELS,
-    _resetForTesting
+    reset
 } from './LayoutModeStore';
 
 describe('LayoutModeStore', () => {
     beforeEach(() => {
-        _resetForTesting();
+        reset();
     });
 
     describe('getLayoutMode / setLayoutMode', () => {
@@ -39,16 +39,16 @@ describe('LayoutModeStore', () => {
         it('cycles force-directed → TB → LR → force-directed', () => {
             expect(getLayoutMode()).toBe('force-directed');
 
-            const result1 = cycleLayoutMode();
-            expect(result1).toBe('hierarchical-TB');
+            const modeAfterFirstCycle = cycleLayoutMode();
+            expect(modeAfterFirstCycle).toBe('hierarchical-TB');
             expect(getLayoutMode()).toBe('hierarchical-TB');
 
-            const result2 = cycleLayoutMode();
-            expect(result2).toBe('hierarchical-LR');
+            const modeAfterSecondCycle = cycleLayoutMode();
+            expect(modeAfterSecondCycle).toBe('hierarchical-LR');
             expect(getLayoutMode()).toBe('hierarchical-LR');
 
-            const result3 = cycleLayoutMode();
-            expect(result3).toBe('force-directed');
+            const modeAfterThirdCycle = cycleLayoutMode();
+            expect(modeAfterThirdCycle).toBe('force-directed');
             expect(getLayoutMode()).toBe('force-directed');
         });
     });
@@ -88,10 +88,14 @@ describe('LayoutModeStore', () => {
         function createMockCy(nodes: Array<{ id: string; x: number; y: number }>) {
             const nodeMap = new Map(nodes.map(n => [n.id, { x: n.x, y: n.y }]));
             return {
-                nodes: () => nodes.map(n => ({
-                    id: () => n.id,
-                    position: () => ({ x: n.x, y: n.y }),
-                })),
+                nodes: () => ({
+                    forEach: (cb: (node: { id: () => string; position: () => { x: number; y: number } }) => void) => {
+                        nodes.forEach(n => cb({
+                            id: () => n.id,
+                            position: () => ({ x: n.x, y: n.y }),
+                        }));
+                    },
+                }),
                 getElementById: (id: string) => {
                     const pos = nodeMap.get(id);
                     return {
@@ -112,36 +116,36 @@ describe('LayoutModeStore', () => {
         });
 
         it('saves and restores positions', () => {
-            const cy = createMockCy([
+            const mockCy = createMockCy([
                 { id: 'a', x: 100, y: 200 },
                 { id: 'b', x: 300, y: 400 },
             ]);
 
-            savePositionsFromCy(cy);
+            savePositionsFromCy(mockCy);
             expect(hasSavedPositions()).toBe(true);
 
             // Simulate positions changed by hierarchical layout
-            restorePositionsToCy(cy);
+            restorePositionsToCy(mockCy);
             expect(hasSavedPositions()).toBe(false);
 
             // Verify positions were restored to the getElementById mock
-            const posA = cy.getPositions();
-            expect(posA.a).toEqual({ x: 100, y: 200 });
-            expect(posA.b).toEqual({ x: 300, y: 400 });
+            const restoredPositions = mockCy.getPositions();
+            expect(restoredPositions.a).toEqual({ x: 100, y: 200 });
+            expect(restoredPositions.b).toEqual({ x: 300, y: 400 });
         });
 
         it('does not overwrite saved positions if already saved', () => {
-            const cy1 = createMockCy([{ id: 'a', x: 10, y: 20 }]);
-            const cy2 = createMockCy([{ id: 'a', x: 999, y: 999 }]);
+            const originalCy = createMockCy([{ id: 'a', x: 10, y: 20 }]);
+            const secondCy = createMockCy([{ id: 'a', x: 999, y: 999 }]);
 
-            savePositionsFromCy(cy1);
-            savePositionsFromCy(cy2); // should be ignored
+            savePositionsFromCy(originalCy);
+            savePositionsFromCy(secondCy); // should be ignored
 
-            const restoreCy = createMockCy([{ id: 'a', x: 0, y: 0 }]);
-            restorePositionsToCy(restoreCy);
+            const targetCy = createMockCy([{ id: 'a', x: 0, y: 0 }]);
+            restorePositionsToCy(targetCy);
 
-            const positions = restoreCy.getPositions();
-            expect(positions.a).toEqual({ x: 10, y: 20 }); // original, not overwritten
+            const restoredPositions = targetCy.getPositions();
+            expect(restoredPositions.a).toEqual({ x: 10, y: 20 }); // original, not overwritten
         });
 
         it('handles missing nodes gracefully during restore', () => {
@@ -152,11 +156,11 @@ describe('LayoutModeStore', () => {
             savePositionsFromCy(saveCy);
 
             // Restore to a cy that only has node 'a' (node 'b' was removed)
-            const restoreCy = createMockCy([{ id: 'a', x: 0, y: 0 }]);
-            restorePositionsToCy(restoreCy); // should not throw
+            const partialCy = createMockCy([{ id: 'a', x: 0, y: 0 }]);
+            restorePositionsToCy(partialCy); // should not throw
 
-            const positions = restoreCy.getPositions();
-            expect(positions.a).toEqual({ x: 100, y: 200 });
+            const restoredPositions = partialCy.getPositions();
+            expect(restoredPositions.a).toEqual({ x: 100, y: 200 });
         });
     });
 

@@ -67,13 +67,13 @@ export function onLayoutModeChange(callback: (mode: LayoutMode) => void): () => 
  * Save current node positions from Cytoscape (call before switching to hierarchical).
  * Only saves if we don't already have saved positions (i.e., we're coming from force-directed).
  */
-export function savePositionsFromCy(cy: { nodes: () => Array<{ id: () => string; position: () => { x: number; y: number } }> }): void {
+export function savePositionsFromCy(cy: { nodes: () => { forEach: (cb: (node: { id: () => string; position: () => { x: number; y: number } }) => void) => void } }): void {
     if (savedPositions.size > 0) return; // Already saved
     savedPositions = new Map();
-    for (const node of cy.nodes()) {
+    cy.nodes().forEach((node) => {
         const pos = node.position();
         savedPositions.set(node.id(), { x: pos.x, y: pos.y });
-    }
+    });
 }
 
 /**
@@ -94,8 +94,8 @@ export function hasSavedPositions(): boolean {
     return savedPositions.size > 0;
 }
 
-/** Reset all state to defaults. For testing only. */
-export function _resetForTesting(): void {
+/** Reset all state to defaults. Called on graph view dispose and in tests. */
+export function reset(): void {
     currentMode = 'force-directed';
     savedPositions = new Map();
     listeners.clear();
