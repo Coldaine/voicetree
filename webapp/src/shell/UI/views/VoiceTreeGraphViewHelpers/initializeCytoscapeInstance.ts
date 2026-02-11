@@ -3,7 +3,12 @@
  * Handles container-based initialization with headless fallback for testing environments
  */
 import cytoscape, {type Core, type CytoscapeOptions, type Stylesheet} from 'cytoscape';
+// @ts-expect-error - cytoscape-dagre doesn't have proper TypeScript definitions
+import cytoscapeDagre from 'cytoscape-dagre';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
+
+// Register layout extensions globally
+cytoscape.use(cytoscapeDagre);
 
 export interface CytoscapeInitConfig {
     container: HTMLElement;
