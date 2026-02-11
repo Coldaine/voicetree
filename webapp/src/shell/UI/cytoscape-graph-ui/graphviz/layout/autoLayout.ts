@@ -173,7 +173,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     // Hierarchical positions are algorithmic and temporary — persisting them
     // would overwrite the user's manual arrangement.
     if (getLayoutMode() === 'force-directed') {
-      void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+      window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[])
+        .catch((error: unknown) => {
+          console.error('[AutoLayout] Failed to save node positions:', error);
+        });
     }
     layoutRunning = false;
 
