@@ -18,6 +18,7 @@ import type { UpsertNodeDelta } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import { getPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore'
 import { Pin, createElement } from 'lucide'
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay'
 
 const TAB_WIDTH: number = 90
 
@@ -146,7 +147,7 @@ function createTab(
     // Create shortcut hint element (shown on hover)
     const shortcutHint: HTMLSpanElement = document.createElement('span')
     shortcutHint.className = 'recent-tab-shortcut-hint'
-    shortcutHint.innerHTML = `⌘${shortcutNumber}`
+    shortcutHint.textContent = formatShortcut(shortcutNumber.toString())
 
     wrapper.appendChild(tab)
     wrapper.appendChild(shortcutHint)
@@ -194,7 +195,7 @@ function createPinnedTab(
     // We could add Cmd+Shift+1-5 in the future if needed
     const shortcutHint: HTMLSpanElement = document.createElement('span')
     shortcutHint.className = 'recent-tab-shortcut-hint'
-    shortcutHint.innerHTML = `pinned`
+    shortcutHint.textContent = `pinned`
 
     wrapper.appendChild(tab)
     wrapper.appendChild(shortcutHint)

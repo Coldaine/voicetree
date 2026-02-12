@@ -3,6 +3,8 @@
  * No side effects, no DOM, no state
  */
 
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -18,7 +20,8 @@ export const CHECK_INTERVAL_MS: number = 2400;
 
 /**
  * Calculate which shortcut key to show for reaching a tab from the active terminal.
- * Returns '⌘[' if the tab is to the left, '⌘]' if to the right, or null if it's the active tab.
+ * Returns platform-specific shortcut (e.g., '⌘[' on Mac, 'Ctrl+[' on Windows/Linux) if the tab
+ * is to the left, or platform-specific ']' variant if to the right, or null if it's the active tab.
  */
 export function getShortcutHintForTab(
     tabIndex: number,
@@ -34,7 +37,7 @@ export function getShortcutHintForTab(
     const rightDistance: number = (tabIndex - activeIndex + totalTabs) % totalTabs;
 
     // If distances are equal, prefer right (])
-    return leftDistance <= rightDistance ? '⌘[' : '⌘]';
+    return leftDistance <= rightDistance ? formatShortcut('[') : formatShortcut(']');
 }
 
 // =============================================================================
