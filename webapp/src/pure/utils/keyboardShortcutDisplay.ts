@@ -6,12 +6,24 @@
  * Detects if the current platform is macOS
  */
 export function isMacPlatform(): boolean {
+    // Try modern User-Agent Client Hints API first
+    if (typeof navigator !== 'undefined' && 'userAgentData' in navigator) {
+        const userAgentData = (navigator as any).userAgentData;
+        if (userAgentData && typeof userAgentData.platform === 'string') {
+            return userAgentData.platform === 'macOS';
+        }
+    }
+
+    // Fall back to deprecated navigator.platform
     if (typeof navigator !== 'undefined' && typeof navigator.platform === 'string') {
         return navigator.platform.toLowerCase().includes('mac');
     }
+
+    // Node.js environment check
     if (typeof process !== 'undefined' && process.platform) {
         return process.platform === 'darwin';
     }
+
     return false;
 }
 
@@ -21,6 +33,29 @@ export function isMacPlatform(): boolean {
  */
 export function getModifierSymbol(): string {
     return isMacPlatform() ? '⌘' : 'Ctrl';
+}
+
+/**
+ * Gets platform-specific symbols for special keys
+ * @param key - The special key name
+ * @returns Platform-specific symbol or key name
+ */
+export function getSpecialKeySymbol(key: string): string {
+    const isMac = isMacPlatform();
+    const keyLower = key.toLowerCase();
+
+    switch (keyLower) {
+        case 'backspace':
+            return isMac ? '⌫' : 'Backspace';
+        case 'enter':
+        case 'return':
+            return isMac ? '⏎' : 'Enter';
+        case 'option':
+        case 'alt':
+            return isMac ? '⌥' : 'Alt';
+        default:
+            return key;
+    }
 }
 
 /**
@@ -34,45 +69,12 @@ export function formatShortcut(key: string, modifier: boolean = true): string {
     const modifierSymbol = getModifierSymbol();
     const separator = isMac ? '' : '+';
 
-    // Convert special key names to platform-specific symbols
-    let displayKey: string;
-    switch (key.toLowerCase()) {
-        case 'backspace':
-            displayKey = isMac ? '⌫' : 'Backspace';
-            break;
-        case 'enter':
-        case 'return':
-            displayKey = isMac ? '⏎' : 'Enter';
-            break;
-        case 'option':
-        case 'alt':
-            displayKey = isMac ? '⌥' : 'Alt';
-            break;
-        default:
-            displayKey = key;
-    }
+    // Delegate to getSpecialKeySymbol for special key handling
+    const displayKey = getSpecialKeySymbol(key);
 
     if (!modifier) {
         return displayKey;
     }
 
     return `${modifierSymbol}${separator}${displayKey}`;
-}
-
-/**
- * Gets platform-specific symbols for special keys
- */
-export function getSpecialKeySymbol(key: 'backspace' | 'enter' | 'option'): string {
-    const isMac = isMacPlatform();
-
-    switch (key) {
-        case 'backspace':
-            return isMac ? '⌫' : 'Backspace';
-        case 'enter':
-            return isMac ? '⏎' : 'Enter';
-        case 'option':
-            return isMac ? '⌥' : 'Alt';
-        default:
-            return key;
-    }
 }

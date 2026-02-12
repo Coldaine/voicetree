@@ -147,7 +147,7 @@ function createTab(
     // Create shortcut hint element (shown on hover)
     const shortcutHint: HTMLSpanElement = document.createElement('span')
     shortcutHint.className = 'recent-tab-shortcut-hint'
-    shortcutHint.innerHTML = formatShortcut(shortcutNumber.toString())
+    shortcutHint.textContent = formatShortcut(shortcutNumber.toString())
 
     wrapper.appendChild(tab)
     wrapper.appendChild(shortcutHint)
@@ -195,7 +195,7 @@ function createPinnedTab(
     // We could add Cmd+Shift+1-5 in the future if needed
     const shortcutHint: HTMLSpanElement = document.createElement('span')
     shortcutHint.className = 'recent-tab-shortcut-hint'
-    shortcutHint.innerHTML = `pinned`
+    shortcutHint.textContent = `pinned`
 
     wrapper.appendChild(tab)
     wrapper.appendChild(shortcutHint)
