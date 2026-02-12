@@ -21,7 +21,7 @@ export const CHECK_INTERVAL_MS: number = 2400;
 /**
  * Calculate which shortcut key to show for reaching a tab from the active terminal.
  * Returns platform-specific shortcut (e.g., '⌘[' on Mac, 'Ctrl+[' on Windows/Linux) if the tab
- * is to the left, or ']' variant if to the right, or null if it's the active tab.
+ * is to the left, or platform-specific ']' variant if to the right, or null if it's the active tab.
  */
 export function getShortcutHintForTab(
     tabIndex: number,
