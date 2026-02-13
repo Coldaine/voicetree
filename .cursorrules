@@ -1,0 +1,45 @@
+# Cursor Rules for VoiceTree
+
+## Before You Start — Read These Files
+
+1. **`TODO.md`** — Full phased roadmap, all pending issues, priorities. Consult before every task.
+2. **`COMPETITIVE-LANDSCAPE.md`** — Competitors and reusable ideas. Consult for design decisions.
+3. **`CLAUDE.md`** (repo root) — Architecture, known gaps, competitive learnings.
+4. **`webapp/CLAUDE.md`** — Coding rules and philosophy. Mandatory before writing code.
+
+## Project
+
+VoiceTree: Electron app for voice/text → markdown → graph visualization + multi-agent MCP control plane.
+
+## Code Rules
+
+- Functional design, NOT OOP. Push impurity to edge/shell.
+- Deep functions: minimal public API, hide complexity.
+- Never use `any` type. All code typechecked.
+- Never run destructive git commands.
+- Never remove human-written comments (//human).
+- Markdown files are source of truth (frontmatter + wikilinks).
+
+## Architecture
+
+Pure code: `webapp/src/pure/` | Shell code: `webapp/src/shell/`
+MCP server: `webapp/src/shell/edge/main/mcp-server/`
+Graph state: `webapp/src/shell/edge/main/state/`
+UI: `webapp/src/shell/UI/`
+
+## Known Gaps
+
+1. No graph DB — markdown only, ChromaDB is search cache, no typed edges
+2. 300-node cap, no virtualization, poor performance at scale
+3. Backend has no crash recovery, no graceful MCP shutdown
+4. No WYSIWYG editing
+
+## Competitors to Learn From
+
+- Heptabase: canvas UX gold standard
+- Tana: voice + AI + supertags
+- Sigma.js: 10k+ node graph rendering
+- Kuzu: embeddable graph DB for desktop apps
+- ScreenPipe: ambient capture integration target
+
+## Issues: https://github.com/Coldaine/voicetree/issues (#4-#12)

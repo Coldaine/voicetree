@@ -163,6 +163,16 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 
 **/*.md
 !tools/prompts/*.md
+!CLAUDE.md
+!TODO.md
+!COMPETITIVE-LANDSCAPE.md
+!CONSOLIDATED-GITHUB-ISSUES.md
+!MCP-PORT-INVESTIGATION.md
+!MCP-PORT-DISCOVERY-IMPLEMENTATION.md
+!GITHUB-ISSUES-BACKEND-ROBUSTNESS.md
+!.github/copilot-instructions.md
+!.codex/instructions.md
+!webapp/CLAUDE.md
 /out/**/*
 /dist/**/*
 /dist-intel/**/*
