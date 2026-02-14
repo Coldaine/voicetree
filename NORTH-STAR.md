@@ -118,73 +118,81 @@ What are we optimizing for?
 
 ```mermaid
 architecture-beta
-    group ui(cloud)[User Interface]
-    group core(server)[Core Service - Rust/Tauri]
+    group external(internet)[External Clients]
+    group core(server)[VoiceTree Core Service]
+    group ingest(server)[Ingestion] in core
+    group querygrp(server)[Query] in core
     group data(database)[Data Layer]
-    group external(internet)[External Integrations]
 
-    service webview(server)[WebView UI - React + Sigma.js] in ui
-    service tray(server)[System Tray] in ui
+    service agents(internet)[MCP Clients] in external
+    service screenpipe(internet)[ScreenPipe] in external
 
-    service mcp(server)[MCP Server - StreamableHTTP :3100] in core
-    service ingestion(server)[Ingestion Pipeline] in core
-    service voice(server)[Voice Transcriber] in core
-    service query(server)[Query Engine] in core
+    service mcp(server)[MCP Server :3100] in core
+    service router(server)[Project Router] in core
+    service voice(server)[Voice Transcriber] in ingest
+    service pipeline(server)[Ingestion Pipeline] in ingest
+    service engine(server)[Query Engine] in querygrp
+    service blender(server)[Blended Ranker] in querygrp
 
     service kuzu(database)[Kuzu Graph DB] in data
     service chroma(database)[ChromaDB Vectors] in data
-    service markdown(disk)[Markdown Export] in data
+    service mdexport(disk)[Markdown Export] in data
 
-    service agents(internet)[MCP Clients - Claude / Cursor / etc] in external
-    service screenpipe(internet)[ScreenPipe] in external
+    service webview(server)[WebView UI]
 
     agents:B --> T:mcp
-    mcp:B --> T:ingestion
-    mcp:B --> T:query
-    voice:R --> L:ingestion
-    screenpipe:B --> T:ingestion
-    ingestion:B --> T:kuzu
-    ingestion:B --> T:chroma
-    query:B --> T:kuzu
-    query:B --> T:chroma
-    kuzu:R --> L:markdown
-    webview:B --> T:query
+    screenpipe:B --> T:pipeline
+    mcp:B --> T:router
+    router:L --> R:pipeline
+    router:R --> L:engine
+    voice:R --> L:pipeline
+    pipeline:B --> T:kuzu
+    pipeline:B --> T:chroma
+    engine:B --> T:blender
+    blender:B --> T:kuzu
+    blender:B --> T:chroma
+    kuzu:R --> L:mdexport
+    webview:B --> T:engine
 ```
 
 ---
 
-## Data Flow
+## Data Flow — Capture to Output
 
 ```mermaid
 flowchart TB
-    subgraph Capture["Capture Layer"]
-        voice["Voice Input<br/>(Whisper / Soniox)"]
-        screenpipe["ScreenPipe<br/>(OCR, windows, audio)"]
-        agents["Agent MCP Tools<br/>(create_graph, etc.)"]
-        manual["Manual Edits<br/>(UI editor)"]
+    subgraph Capture["fa:fa-microphone Capture Layer"]
+        direction LR
+        voice["fa:fa-microphone Voice Input\n Whisper / Soniox"]
+        screenpipe["fa:fa-desktop ScreenPipe\n OCR, windows, audio"]
+        agents["fa:fa-robot Agent MCP Tools\n create_graph, etc."]
+        manual["fa:fa-edit Manual Edits\n UI editor"]
     end
 
-    subgraph Ingestion["Ingestion Pipeline"]
-        normalize["Normalize &<br/>Deduplicate"]
-        tag["Auto-Tag &<br/>Classify"]
-        link["Extract Relations<br/>& Wikilinks"]
+    subgraph Ingestion["fa:fa-filter Ingestion Pipeline"]
+        normalize["Normalize\n& Deduplicate"]
+        tag["Auto-Tag\n& Classify"]
+        link["Extract Relations\n& Type Edges"]
+        embed["Generate\nEmbeddings"]
     end
 
-    subgraph Store["Data Layer"]
-        kuzu[("Kuzu Graph DB<br/>Nodes + Typed Edges<br/>+ Temporal History")]
-        chroma[("ChromaDB<br/>Vector Embeddings")]
+    subgraph Store["fa:fa-database Data Layer"]
+        kuzu[("fa:fa-project-diagram Kuzu Graph DB\n Nodes + Typed Edges\n + Temporal History")]
+        chroma[("fa:fa-search ChromaDB\n Vector Embeddings")]
     end
 
-    subgraph Query["Query Engine"]
-        graph_q["Graph Traversal<br/>(Cypher)"]
-        vector_q["Semantic Search<br/>(Embeddings)"]
-        blend["Blended Ranking<br/>(graph + vector + tags + time)"]
+    subgraph Query["fa:fa-cogs Query Engine"]
+        graph_q["Cypher\nGraph Traversal"]
+        vector_q["Semantic\nVector Search"]
+        bm25["BM25\nKeyword Search"]
+        blend["Blended Ranking\n graph + vector + BM25\n + tags + recency"]
     end
 
-    subgraph Output["Output Layer"]
-        ui["WebView UI<br/>(Sigma.js graph + feed)"]
-        mcp_out["MCP Tool Responses"]
-        md_export["Markdown Export"]
+    subgraph Output["fa:fa-share-alt Output Layer"]
+        direction LR
+        ui["fa:fa-window-maximize WebView UI\n Sigma.js + Feed"]
+        mcp_out["fa:fa-plug MCP Responses\n Tool results"]
+        md_export["fa:fa-file-alt Markdown\n Export"]
     end
 
     voice --> normalize
@@ -195,69 +203,73 @@ flowchart TB
     normalize --> tag
     tag --> link
     link --> kuzu
-    link --> chroma
+    link --> embed
+    embed --> chroma
 
     kuzu --> graph_q
     chroma --> vector_q
+    kuzu --> bm25
     graph_q --> blend
     vector_q --> blend
+    bm25 --> blend
 
     blend --> ui
     blend --> mcp_out
-    kuzu --> md_export
+    kuzu -.->|"on demand"| md_export
 
-    style Capture fill:#e3f2fd,stroke:#1976d2
-    style Ingestion fill:#f3e5f5,stroke:#7b1fa2
-    style Store fill:#fff3e0,stroke:#f57c00
-    style Query fill:#e8f5e9,stroke:#388e3c
-    style Output fill:#fce4ec,stroke:#c62828
+    style Capture fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style Ingestion fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style Store fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Query fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Output fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
 ```
 
 ---
 
-## MCP Discovery Model
+## MCP Discovery — One-Time Setup
 
 ```mermaid
 flowchart LR
     subgraph setup["One-Time Setup"]
-        cli["voicetree setup"]
+        cli["fa:fa-terminal voicetree setup"]
     end
 
-    subgraph configs["Global Client Configs (written once)"]
-        claude["~/.claude.json"]
-        vscode[".vscode/mcp.json"]
-        cursor[".cursor/mcp.json"]
-        gemini["~/.gemini/settings.json"]
-        codex[".codex/config.toml"]
-        windsurf["~/.codeium/windsurf/mcp_config.json"]
+    subgraph configs["Client Configs Written Once"]
+        claude["Claude Code\n .mcp.json"]
+        vscode["VS Code Copilot\n .vscode/mcp.json"]
+        cursor["Cursor\n .cursor/mcp.json"]
+        gemini["Gemini CLI\n settings.json"]
+        codex["Codex\n config.toml"]
+        windsurf["Windsurf\n mcp_config.json"]
     end
 
     subgraph service["VoiceTree Service"]
-        server["MCP Server<br/>localhost:3100"]
-        portfile["~/.config/voicetree/<br/>mcp-server.json"]
+        server["fa:fa-server MCP Server\n localhost:3100"]
+        portfile["Discovery File\n mcp-server.json"]
     end
 
-    subgraph agents["Any MCP Client"]
-        agent["Claude / Cursor /<br/>Copilot / Gemini / ..."]
+    subgraph runtime["Runtime"]
+        agent["fa:fa-robot Any MCP Client"]
     end
 
-    cli --> claude
-    cli --> vscode
-    cli --> cursor
-    cli --> gemini
-    cli --> codex
-    cli --> windsurf
-    cli --> portfile
+    cli -->|"detect & write"| claude
+    cli -->|"detect & write"| vscode
+    cli -->|"detect & write"| cursor
+    cli -->|"detect & write"| gemini
+    cli -->|"detect & write"| codex
+    cli -->|"detect & write"| windsurf
+    cli -->|"write"| portfile
 
     agent -->|"HTTP POST /mcp"| server
+    agent -.->|"fallback: read port"| portfile
 
-    style setup fill:#e8eaf6,stroke:#3f51b5
-    style configs fill:#f5f5f5,stroke:#9e9e9e
-    style service fill:#e8f5e9,stroke:#4caf50
-    style agents fill:#fff3e0,stroke:#ff9800
+    style setup fill:#e8eaf6,stroke:#283593,stroke-width:2px
+    style configs fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    style service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style runtime fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
-**Key point:** VoiceTree writes to client configs **once** during setup, not on every launch. The port is fixed. No file injection into project directories. Any MCP client anywhere on the machine can connect.
+**Key point:** VoiceTree writes to client configs **once** during setup, not on every launch. The port is fixed. No file injection into project directories. Any MCP client anywhere on the machine can connect. The discovery file is a fallback for clients that aren't pre-configured.
 
 ---
 
@@ -265,28 +277,93 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Claude Code<br/>(in /project-a)
-    participant MCP as VoiceTree MCP<br/>(:3100)
+    actor AgentA as Agent A (project-a)
+    participant MCP as VoiceTree MCP :3100
     participant Router as Project Router
-    participant DB_A as Vault: project-a
-    participant DB_B as Vault: project-b
+    participant VA as Vault A (Kuzu)
+    participant VB as Vault B (Kuzu)
+    actor AgentB as Agent B (project-b)
 
-    Agent->>MCP: POST /mcp<br/>tool: create_graph<br/>project: /project-a
-    MCP->>Router: Route to vault for /project-a
-    Router->>DB_A: Write nodes + edges
-    DB_A-->>MCP: Success
-    MCP-->>Agent: Tool result
+    Note over MCP,Router: All agents connect to same endpoint
 
-    Note over Router: Different agent, different project
+    AgentA->>+MCP: create_graph(project=/project-a, nodes=[...])
+    MCP->>Router: resolve vault for /project-a
+    Router->>+VA: write nodes + typed edges
+    VA-->>-Router: committed
+    Router-->>MCP: success
+    MCP-->>-AgentA: tool result (node IDs)
 
-    Agent->>MCP: POST /mcp<br/>tool: search_nodes<br/>project: /project-b
-    MCP->>Router: Route to vault for /project-b
-    Router->>DB_B: Query graph
-    DB_B-->>MCP: Results
-    MCP-->>Agent: Search results
+    AgentB->>+MCP: search_nodes(project=/project-b, query="auth flow")
+    MCP->>Router: resolve vault for /project-b
+    Router->>+VB: Cypher + vector search
+    VB-->>-Router: ranked results
+    Router-->>MCP: results
+    MCP-->>-AgentB: search results
+
+    Note over VA,VB: Vaults are independent Kuzu databases
+
+    AgentA->>+MCP: search_nodes(project=/project-a, query="related to auth")
+    MCP->>Router: resolve vault for /project-a
+    Router->>+VA: Cypher + vector search
+    VA-->>-Router: results
+    MCP-->>-AgentA: search results
 ```
 
-**Key point:** Agents declare which project they're working in. VoiceTree routes to the right vault. No folder watching. No config injection. Multiple projects active simultaneously.
+**Key point:** Agents declare which project they're working in. VoiceTree routes to the right vault. Multiple projects are active simultaneously as independent Kuzu database instances. No folder watching. No config injection.
+
+---
+
+## Ingestion Pipeline Detail
+
+```mermaid
+flowchart LR
+    subgraph Input["Inbound Events"]
+        voice_evt["Voice transcript"]
+        screen_evt["ScreenPipe event"]
+        mcp_evt["Agent MCP call"]
+        edit_evt["UI edit"]
+    end
+
+    subgraph Dedupe["Deduplicate"]
+        window["Sliding window\n 30s dedupe"]
+        hash["Content hash\n exact-match filter"]
+    end
+
+    subgraph Enrich["Enrich"]
+        classify["Classify source\n voice/ambient/agent/manual"]
+        autotag["Auto-extract tags\n from content + context"]
+        relations["Infer relations\n parent, references, extends"]
+        context["Attach active context\n project, window, URL"]
+    end
+
+    subgraph Write["Commit"]
+        graphwrite["Write node + edges\n to Kuzu (ACID)"]
+        vectorwrite["Embed + write\n to ChromaDB"]
+        notify["Notify UI\n via WebSocket"]
+    end
+
+    voice_evt --> window
+    screen_evt --> window
+    mcp_evt --> hash
+    edit_evt --> hash
+
+    window --> classify
+    hash --> classify
+
+    classify --> autotag
+    autotag --> relations
+    relations --> context
+
+    context --> graphwrite
+    context --> vectorwrite
+    graphwrite --> notify
+    vectorwrite --> notify
+
+    style Input fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style Dedupe fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
+    style Enrich fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style Write fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+```
 
 ---
 
@@ -294,40 +371,6 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-    NODE {
-        uuid id PK
-        string title
-        string content
-        string summary
-        string node_type "voice | agent | manual | ambient | imported"
-        string[] tags
-        datetime created_at
-        datetime modified_at
-        string source_type "voice | screenpipe | mcp | editor"
-        string source_ref "agent_id, session_id, etc."
-        json metadata "extensible key-value"
-    }
-
-    EDGE {
-        uuid id PK
-        uuid from_node FK
-        uuid to_node FK
-        string relation_type "references | depends_on | contradicts | extends | example_of | child_of"
-        float weight "optional strength"
-        datetime created_at
-        string created_by "agent_id or user"
-    }
-
-    NODE_VERSION {
-        uuid id PK
-        uuid node_id FK
-        string content
-        string change_type "created | modified | appended | deleted"
-        datetime timestamp
-        string git_commit "optional SHA"
-        string agent_session_id "optional"
-    }
-
     VAULT {
         uuid id PK
         string name
@@ -336,9 +379,97 @@ erDiagram
         json settings
     }
 
-    NODE ||--o{ EDGE : "has outgoing"
-    NODE ||--o{ NODE_VERSION : "has history"
+    NODE {
+        uuid id PK
+        uuid vault_id FK
+        string title
+        text content
+        string summary
+        string node_type "voice | agent | manual | ambient"
+        string source_type "whisper | screenpipe | mcp | editor"
+        string source_ref "agent_id or session_id"
+        datetime created_at
+        datetime modified_at
+        json metadata
+    }
+
+    TAG {
+        uuid id PK
+        string name UK
+        string category "topic | source | status | custom"
+    }
+
+    EDGE {
+        uuid id PK
+        uuid from_node FK
+        uuid to_node FK
+        string relation_type "references | depends_on | contradicts | extends | example_of | child_of"
+        float weight
+        datetime created_at
+        string created_by "agent_id or user"
+    }
+
+    NODE_VERSION {
+        uuid id PK
+        uuid node_id FK
+        text content_snapshot
+        string change_type "created | modified | appended"
+        datetime timestamp
+        string git_commit "optional SHA"
+        string agent_session_id "optional"
+    }
+
     VAULT ||--o{ NODE : "contains"
+    NODE ||--o{ EDGE : "outgoing edges"
+    NODE }o--|| EDGE : "incoming edges"
+    NODE ||--o{ NODE_VERSION : "version history"
+    NODE }o--o{ TAG : "tagged with"
+```
+
+---
+
+## Lifecycle — Startup and Shutdown
+
+```mermaid
+sequenceDiagram
+    participant OS as Operating System
+    participant Tray as System Tray
+    participant Core as VoiceTree Core
+    participant MCP as MCP Server
+    participant DB as Kuzu + ChromaDB
+    participant UI as WebView UI
+
+    Note over OS,UI: Startup (auto-start or manual)
+
+    OS->>Core: Launch VoiceTree
+    activate Core
+    Core->>DB: Open databases
+    activate DB
+    DB-->>Core: Ready
+    Core->>MCP: Bind to :3100
+    activate MCP
+    MCP-->>Core: Listening
+    Core->>Tray: Show tray icon
+    activate Tray
+    Core->>UI: Open WebView (if not headless)
+    activate UI
+    UI-->>Core: Connected
+
+    Note over OS,UI: Running (always-on)
+
+    Note over OS,UI: Shutdown (quit or OS signal)
+
+    OS->>Core: SIGTERM / Quit
+    Core->>UI: Close WebView
+    deactivate UI
+    Core->>MCP: Drain connections, close
+    deactivate MCP
+    Core->>DB: Flush + close
+    deactivate DB
+    Core->>Tray: Remove icon
+    deactivate Tray
+    Core-->>OS: Exit 0
+    deactivate Core
 ```
 
 ---
