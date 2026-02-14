@@ -173,6 +173,7 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 !.github/copilot-instructions.md
 !.codex/instructions.md
 !webapp/CLAUDE.md
+!NORTH-STAR.md
 /out/**/*
 /dist/**/*
 /dist-intel/**/*
