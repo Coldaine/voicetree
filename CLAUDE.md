@@ -142,5 +142,6 @@ Quick reference:
 - `cd webapp && npx vitest run <file>` — Test specific file
 
 ## Git Remotes
-- `origin` = `voicetreelab/voicetree`
+- `origin` = `Coldaine/voicetree` (personal fork)
+- `upstream` = `voicetreelab/voicetree` (org repo)
 - `upstream` = `voicetreelab/voicetree` (upstream)

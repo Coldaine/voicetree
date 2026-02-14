@@ -58,7 +58,8 @@ Three ingestion pathways: Voice→Python→Markdown, File edits→Chokidar→Gra
 
 ## Git Remotes
 
-- `origin` = `voicetreelab/voicetree`
+- `origin` = `Coldaine/voicetree` (personal fork)
+- `upstream` = `voicetreelab/voicetree` (org repo)
 
 ## Issues
 
