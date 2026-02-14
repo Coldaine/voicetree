@@ -112,22 +112,25 @@ See `COMPETITIVE-LANDSCAPE.md` for the full analysis. The closest projects and r
 - **Phase C (Scale)**: Issues #9-10 — Performance for 10k+ nodes, UX redesign (depends on graph DB)
 - **Phase D (Temporal/Visual)**: Issues #11-12 — Temporal graph/history, enhanced visualization (depends on graph DB)
 
-## GitHub Issues (Coldaine fork)
+## GitHub Issues
 
-All issues: https://github.com/Coldaine/voicetree/issues
+Live issues: https://github.com/voicetreelab/voicetree/issues
 
-| Phase | Issue | Title |
-|-------|-------|-------|
-| 0 | [#13](https://github.com/Coldaine/voicetree/issues/13) | Service Architecture (daemon model, MCP discovery) |
-| 0 | [#15](https://github.com/Coldaine/voicetree/issues/15) | Data Layer (graph DB under markdown) |
-| A | [#5](https://github.com/Coldaine/voicetree/issues/5) | Critical Backend Fixes |
-| A | [#6](https://github.com/Coldaine/voicetree/issues/6) | Crash Recovery |
-| B | [#7](https://github.com/Coldaine/voicetree/issues/7) | Always-On Context-Aware Ingestion |
-| B | [#8](https://github.com/Coldaine/voicetree/issues/8) | Tag-First Knowledge Model |
-| C | [#9](https://github.com/Coldaine/voicetree/issues/9) | Performance Overhaul |
-| C | [#10](https://github.com/Coldaine/voicetree/issues/10) | Graph UX Redesign |
-| D | [#11](https://github.com/Coldaine/voicetree/issues/11) | Temporal Graph & History |
-| D | [#12](https://github.com/Coldaine/voicetree/issues/12) | Enhanced Graph Visualization |
+> **Note:** The phase/issue numbers below are internal roadmap IDs from `TODO.md`.
+> They do NOT match live GitHub issue numbers. See the link above for canonical tracking.
+
+| Phase | Roadmap ID | Title |
+|-------|------------|-------|
+| 0 | #13 | Service Architecture (daemon model, MCP discovery) |
+| 0 | #15 | Data Layer (graph DB under markdown) |
+| A | #5 | Critical Backend Fixes |
+| A | #6 | Crash Recovery |
+| B | #7 | Always-On Context-Aware Ingestion |
+| B | #8 | Tag-First Knowledge Model |
+| C | #9 | Performance Overhaul |
+| C | #10 | Graph UX Redesign |
+| D | #11 | Temporal Graph & History |
+| D | #12 | Enhanced Graph Visualization |
 
 ## Development
 
@@ -139,5 +142,5 @@ Quick reference:
 - `cd webapp && npx vitest run <file>` — Test specific file
 
 ## Git Remotes
-- `origin` = `Coldaine/voicetree` (personal fork)
+- `origin` = `voicetreelab/voicetree`
 - `upstream` = `voicetreelab/voicetree` (upstream)

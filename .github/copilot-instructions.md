@@ -51,6 +51,8 @@ VoiceTree is an Electron app: voice/text input creates structured markdown nodes
 
 ## GitHub Issues
 
-All issues: https://github.com/Coldaine/voicetree/issues (#4-#12)
+Live issues: https://github.com/voicetreelab/voicetree/issues
+
+> **Note:** Numbers below (#4-#12) are internal roadmap IDs from `TODO.md`, not live GitHub issue numbers.
 
 Priority order: Stability (#4-6) > Always-On (#7-8) > Scale (#9-10) > Visual (#11-12)

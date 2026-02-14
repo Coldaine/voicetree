@@ -42,4 +42,6 @@ UI: `webapp/src/shell/UI/`
 - Kuzu: embeddable graph DB for desktop apps
 - ScreenPipe: ambient capture integration target
 
-## Issues: https://github.com/Coldaine/voicetree/issues (#4-#12)
+## Issues: https://github.com/voicetreelab/voicetree/issues
+
+> Numbers #4-#12 are internal roadmap IDs from `TODO.md`, not live GitHub issue numbers.

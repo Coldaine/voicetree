@@ -58,7 +58,10 @@ Three ingestion pathways: Voice→Python→Markdown, File edits→Chokidar→Gra
 
 ## Git Remotes
 
-- `origin` = `Coldaine/voicetree` (personal fork)
-- `upstream` = `voicetreelab/voicetree`
+- `origin` = `voicetreelab/voicetree`
 
-## Issues: https://github.com/Coldaine/voicetree/issues (#4-#12)
+## Issues
+
+Live issues: https://github.com/voicetreelab/voicetree/issues
+
+> Numbers #4-#12 below are internal roadmap IDs from `TODO.md`, not live GitHub issue numbers.

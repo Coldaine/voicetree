@@ -8,7 +8,7 @@ These two issues are prerequisites that shape everything else. The current archi
 
 ### Issue #13: Service Architecture — From Folder Watcher to Persistent Service
 **Effort**: 2-3 weeks
-**GitHub**: [Coldaine/voicetree#13](https://github.com/Coldaine/voicetree/issues/13)
+**GitHub**: [voicetreelab/voicetree#13](https://github.com/voicetreelab/voicetree/issues/13)
 
 **The Problem**: VoiceTree is currently an "Electron app that watches one folder." This forces:
 - Per-project config file injection (`.mcp.json`, `.codex/config.toml`) into directories VoiceTree doesn't own
