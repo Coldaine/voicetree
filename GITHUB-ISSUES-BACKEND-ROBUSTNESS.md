@@ -2,6 +2,10 @@
 
 Generated from architectural audit of VoiceTree's WebSocket/server management infrastructure.
 
+> **Numbering note:** Issue numbers in this document (#1-#17) are internal to this
+> audit report. They do NOT match live GitHub issue numbers or other roadmap IDs.
+> See https://github.com/voicetreelab/voicetree/issues for canonical tracking.
+
 ---
 
 ## Critical Priority Issues

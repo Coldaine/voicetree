@@ -65,4 +65,4 @@ Three ingestion pathways: Voice→Python→Markdown, File edits→Chokidar→Gra
 
 Live issues: https://github.com/voicetreelab/voicetree/issues
 
-> Numbers #4-#12 below are internal roadmap IDs from `TODO.md`, not live GitHub issue numbers.
+> Numbers #5-#14 below are internal roadmap IDs from `TODO.md`, not live GitHub issue numbers.

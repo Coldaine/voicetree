@@ -8,7 +8,7 @@ These two issues are prerequisites that shape everything else. The current archi
 
 ### Issue #13: Service Architecture — From Folder Watcher to Persistent Service
 **Effort**: 2-3 weeks
-**GitHub**: [voicetreelab/voicetree#13](https://github.com/voicetreelab/voicetree/issues/13)
+**GitHub**: [voicetreelab/voicetree#13](https://github.com/voicetreelab/voicetree/issues/13) *(this roadmap ID intentionally matches the GitHub issue number)*
 
 **The Problem**: VoiceTree is currently an "Electron app that watches one folder." This forces:
 - Per-project config file injection (`.mcp.json`, `.codex/config.toml`) into directories VoiceTree doesn't own
@@ -312,4 +312,4 @@ Current repository issues:
 - [#9 Expandable Folder Nodes](https://github.com/voicetreelab/voicetree/issues/9)
 - [#11 Won't open up folder with > 300 files](https://github.com/voicetreelab/voicetree/issues/11)
 
-Roadmap IDs in this document (`Issue #4` ... `Issue #12`) are planning labels, not GitHub issue numbers.
+Roadmap IDs in this document (`Issue #5` ... `Issue #14`) are planning labels, not GitHub issue numbers.

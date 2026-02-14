@@ -1,9 +1,9 @@
 # Consolidated GitHub Issues
 
 > **Numbering note:** The issue numbers in this document (#1-#9) are internal to this
-> specification file. They correspond to roadmap IDs #4-#12 in `TODO.md` but do NOT
-> match live GitHub issue numbers. See https://github.com/voicetreelab/voicetree/issues
-> for canonical issue tracking.
+> specification file. They pre-date the Phase 0 restructuring of `TODO.md` and correspond
+> to an older roadmap numbering. They do NOT match live GitHub issue numbers.
+> See https://github.com/voicetreelab/voicetree/issues for canonical issue tracking.
 
 ## Issue #1: Implement MCP Port Discovery for External Clients
 

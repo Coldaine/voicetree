@@ -122,7 +122,7 @@ Live issues: https://github.com/voicetreelab/voicetree/issues
 | Phase | Roadmap ID | Title |
 |-------|------------|-------|
 | 0 | #13 | Service Architecture (daemon model, MCP discovery) |
-| 0 | #15 | Data Layer (graph DB under markdown) |
+| 0 | #14 | Data Layer (graph DB under markdown) |
 | A | #5 | Critical Backend Fixes |
 | A | #6 | Crash Recovery |
 | B | #7 | Always-On Context-Aware Ingestion |
@@ -144,4 +144,3 @@ Quick reference:
 ## Git Remotes
 - `origin` = `Coldaine/voicetree` (personal fork)
 - `upstream` = `voicetreelab/voicetree` (org repo)
-- `upstream` = `voicetreelab/voicetree` (upstream)

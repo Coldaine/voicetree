@@ -2,6 +2,10 @@
 
 *Research conducted: 2026-02-13*
 
+> **Numbering note:** Issue numbers in this document (e.g., "Issue #7") are internal
+> roadmap IDs from `TODO.md`, NOT live GitHub issue numbers.
+> See https://github.com/voicetreelab/voicetree/issues for canonical tracking.
+
 ## Executive Summary
 
 VoiceTree occupies an emerging niche at the intersection of voice capture, graph-based knowledge management, and AI agent orchestration. No single competitor covers the full surface, but strong competitors exist for every individual capability. The strongest differentiator is graph-based agent orchestration with real-time voice input — but this remains unproven at scale.
@@ -221,8 +225,8 @@ These are infrastructure-level competitors — potential foundations for VoiceTr
 
 ## Recommendation
 
-**Short-term priority**: Stability (Issues #4-6) and performance (Issue #9) are prerequisites for everything else. A tool that crashes or lags loses to any competitor regardless of features.
+**Short-term priority**: Stability (Roadmap #5-6) and performance (Roadmap #9) are prerequisites for everything else. A tool that crashes or lags loses to any competitor regardless of features.
 
-**Medium-term moat**: The graph DB layer + typed relationships (Issue #8) + always-on capture (Issue #7) create a defensible data asset that competitors would need to replicate from scratch.
+**Medium-term moat**: The graph DB layer + typed relationships (Roadmap #8) + always-on capture (Roadmap #7) create a defensible data asset that competitors would need to replicate from scratch.
 
 **Long-term vision**: The combination of ambient capture + graph-structured knowledge + agent orchestration is genuinely novel. But each component must work well individually before the combination matters.
