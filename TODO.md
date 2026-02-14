@@ -1,28 +1,88 @@
 # VoiceTree - Next Steps & TODO
 
-## Phase A: Stability Foundation
+> Note: Issue numbers in this file are internal roadmap IDs used for planning. They do not map 1:1 to the current live GitHub issue numbers.
 
-### Issue #4: MCP Port Discovery for External Clients
-**GitHub**: https://github.com/Coldaine/voicetree/issues/4
-**Effort**: 4-6 hours
+## Phase 0: Architectural Foundation
 
-External MCP clients (Gemini CLI, etc.) can't discover VoiceTree's port when it drifts from 3001. Need a cross-platform port discovery file at `app.getPath('userData')/mcp-server.json`.
+These two issues are prerequisites that shape everything else. The current architecture — an Electron app that watches one folder, injects config files into project directories, and stores everything as flat markdown — doesn't support the vision of an always-on, multi-project, multi-agent knowledge platform.
 
-- [ ] Create `mcp-port-file.ts` (write/cleanup/PID validation)
-- [ ] Update `mcp-server.ts` to write port file after bind
-- [ ] Update `main.ts` to await startup and cleanup on quit
-- [ ] Add `VOICETREE_MCP_PORT` env var for pinning
-- [ ] Unit tests
+### Issue #13: Service Architecture — From Folder Watcher to Persistent Service
+**Effort**: 2-3 weeks
+**GitHub**: [Coldaine/voicetree#13](https://github.com/Coldaine/voicetree/issues/13)
 
-**Reference**: `MCP-PORT-DISCOVERY-IMPLEMENTATION.md`, `MCP-PORT-INVESTIGATION.md`
+**The Problem**: VoiceTree is currently an "Electron app that watches one folder." This forces:
+- Per-project config file injection (`.mcp.json`, `.codex/config.toml`) into directories VoiceTree doesn't own
+- Random port binding (3001-3100) with no stable discovery
+- Single-project, single-instance limitation
+- Dirty git state every launch (port rewritten in tracked `.mcp.json`)
+- Only 2 of 7+ MCP clients supported (Claude Code, Codex)
+- No cleanup on exit (stale ports in config files)
+
+**The Fix**: VoiceTree becomes a persistent service with an Electron UI frontend.
+
+- [ ] **Fixed port** with `VOICETREE_MCP_PORT` env var, hard-fail if occupied
+- [ ] **Global port discovery file** at `app.getPath('userData')/mcp-server.json` (interim)
+- [ ] **Stop injecting files into project directories** — remove `mcp-client-config.ts` file-writing behavior
+- [ ] **`voicetree setup` CLI** that writes global config for all detected MCP clients (Claude Code, VS Code, Cursor, Gemini CLI, Windsurf, Cline, Codex)
+- [ ] **Server-side project routing** — agents send project path via MCP tool, VoiceTree routes to the right vault
+- [ ] **Multi-project support** — multiple vaults active simultaneously
+- [ ] **Graceful lifecycle** — proper startup, shutdown, port cleanup (subsumes Issues #5, #6)
+
+**MCP client config locations** (what `voicetree setup` would write):
+| Client | Config Path | Format |
+|--------|------------|--------|
+| Claude Code | `.mcp.json` or `~/.claude.json` | `{"mcpServers": {"voicetree": {"type": "http", "url": "..."}}}` |
+| VS Code Copilot | `.vscode/mcp.json` | Same mcpServers format |
+| Cursor | `.cursor/mcp.json` | Same mcpServers format |
+| Gemini CLI | `~/.gemini/settings.json` | `{"mcpServers": {"voicetree": {"httpUrl": "..."}}}` |
+| Codex | `.codex/config.toml` | `[mcp_servers.voicetree] url = "..."` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | Same mcpServers format |
+| Cline | `.cline/mcp_settings.json` | Same mcpServers format |
+
+**Reference**: `MCP-PORT-INVESTIGATION.md`, `MCP-PORT-DISCOVERY-IMPLEMENTATION.md`
 
 ---
 
+### Issue #14: Data Layer — Add Graph Database Under Markdown
+**Effort**: 2-3 weeks
+
+**The Problem**: Markdown files are the sole source of truth. There is no graph database. ChromaDB is only a vector search cache. BM25 is recomputed fresh every query. Wikilinks are the only relationship mechanism — untyped, no graph queries, no ACID, no traversal algorithms.
+
+This means:
+- No way to query "all nodes that depend on X" (no typed edges)
+- No graph algorithms (shortest path, clustering, centrality)
+- No transactional consistency (two agents writing simultaneously = race condition)
+- Performance ceiling — every query scans files or rebuilds indexes
+- The "graph" in VoiceTree is really just a visualization of file links, not a queryable data structure
+
+**The Fix**: Add an embeddable graph database as the authoritative data layer. Markdown files become a serialization format (import/export), not the runtime store.
+
+**Candidates** (from competitive landscape research):
+| DB | Why It Fits | Concern |
+|----|------------|---------|
+| **Kuzu** | Embeddable (like SQLite for graphs), Cypher support, perfect for desktop apps | Young project |
+| **FalkorDB** | Redis-backed, extremely fast, Cypher-compatible | Requires Redis runtime |
+| **SurrealDB** | Multi-model (graph + document + vector), embeddable mode | Ambitious scope, maturity |
+
+- [ ] Evaluate Kuzu vs FalkorDB vs SurrealDB for embeddable desktop use
+- [ ] Design schema: nodes, typed edges, tags, temporal metadata
+- [ ] Implement graph DB layer with Markdown import/export
+- [ ] Migrate ChromaDB vector search into graph DB (if it supports vectors) or keep as sidecar
+- [ ] Add typed edge support (`references`, `depends_on`, `contradicts`, `extends`, etc.)
+- [ ] Add graph query API (traversals, shortest path, neighborhood, centrality)
+- [ ] Migration tool for existing markdown vaults
+- [ ] Markdown files remain human-readable exports, not the runtime store
+
+**Relationship to other issues**: This subsumes much of Issue #8 (tags + typed edges) and unblocks Issue #9 (performance at scale). It also makes Issue #11 (temporal queries) feasible — a proper DB can index timestamps efficiently.
+
+---
+
+## Phase A: Stability Foundation
+
 ### Issue #5: Critical Backend Infrastructure Fixes
-**GitHub**: https://github.com/Coldaine/voicetree/issues/5
 **Effort**: 2-3 hours (quick wins)
 
-Five critical fixes for port leaks, silent crashes, and memory leaks:
+Five critical fixes for port leaks, silent crashes, and memory leaks. These are worth doing immediately even before the Phase 0 architecture work.
 
 - [ ] **MCP graceful shutdown**: Store `http.Server` ref, call `.close()` in `before-quit`
 - [ ] **Unhandled rejection handler**: Add `process.on('unhandledRejection')` to `main.ts`
@@ -35,7 +95,6 @@ Five critical fixes for port leaks, silent crashes, and memory leaks:
 ---
 
 ### Issue #6: Backend Crash Recovery and Reconnection
-**GitHub**: https://github.com/Coldaine/voicetree/issues/6
 **Effort**: 4-6 hours
 
 Auto-restart TextToTree server on crash and reconnect SSE consumer:
@@ -51,6 +110,7 @@ Auto-restart TextToTree server on crash and reconnect SSE consumer:
 
 ### Issue #7: Always-On Context-Aware Ingestion Pipeline
 **Effort**: 1-2 weeks
+**Depends on**: Phase 0 (service architecture enables always-on; graph DB enables efficient ingestion)
 
 VoiceTree should run continuously without manual project scoping. Integrate ambient context capture (ScreenPipe-first) to understand the user's active work surface.
 
@@ -78,6 +138,7 @@ VoiceTree should run continuously without manual project scoping. Integrate ambi
 
 ### Issue #8: Tag-First Knowledge Model with Multi-Relational Edges
 **Effort**: 1-2 weeks
+**Depends on**: Issue #14 (graph DB provides typed edges natively; without it, tags/edges are hacked into frontmatter)
 
 Graph relationships alone aren't enough. Need explicit tagging and richer edge semantics.
 
@@ -98,6 +159,7 @@ Graph relationships alone aren't enough. Need explicit tagging and richer edge s
 
 ### Issue #9: Performance Overhaul for Large Graphs
 **Effort**: 2-3 weeks
+**Depends on**: Issue #14 (graph DB eliminates file-scanning bottleneck; proper indexes replace full scans)
 
 Performance degrades significantly as node count grows. Current hard cap is 300 nodes. Always-on usage requires much higher scale.
 
@@ -145,6 +207,7 @@ Graph-first interaction isn't always the most useful surface. Need feed-first / 
 
 ### Issue #11: Temporal Graph and Project History Visualization
 **Effort**: 2-3 weeks
+**Depends on**: Issue #14 (temporal queries need indexed timestamps and version history — can't do this over flat files)
 
 VoiceTree lacks temporal awareness - no version history, no "what changed when", no way to understand project evolution over time.
 
@@ -237,13 +300,16 @@ Three pathways into the graph today:
 
 ## GitHub Issues
 
-All issues live on https://github.com/Coldaine/voicetree/issues:
-- [#4 MCP Port Discovery](https://github.com/Coldaine/voicetree/issues/4)
-- [#5 Critical Backend Fixes](https://github.com/Coldaine/voicetree/issues/5)
-- [#6 Crash Recovery](https://github.com/Coldaine/voicetree/issues/6)
-- [#7 Always-On Context-Aware Ingestion](https://github.com/Coldaine/voicetree/issues/7)
-- [#8 Tag-First Knowledge Model](https://github.com/Coldaine/voicetree/issues/8)
-- [#9 Performance Overhaul for Large Graphs](https://github.com/Coldaine/voicetree/issues/9)
-- [#10 Graph UX Redesign](https://github.com/Coldaine/voicetree/issues/10)
-- [#11 Temporal Graph and Project History](https://github.com/Coldaine/voicetree/issues/11)
-- [#12 Enhanced Graph Visualization](https://github.com/Coldaine/voicetree/issues/12)
+Live tracker: https://github.com/voicetreelab/voicetree/issues
+
+Current repository issues:
+- [#1 MacOS Dev Setup](https://github.com/voicetreelab/voicetree/issues/1)
+- [#3 Graph logo for VoiceTree in Ubuntu renders weirdly](https://github.com/voicetreelab/voicetree/issues/3)
+- [#4 Security: Critical XSS to RCE vulnerability via malicious markdown files](https://github.com/voicetreelab/voicetree/issues/4)
+- [#6 How to update project overview after substantial changes in codebase?](https://github.com/voicetreelab/voicetree/issues/6)
+- [#7 macOS: Drag & drop files onto terminal windows to expand to filepath](https://github.com/voicetreelab/voicetree/issues/7)
+- [#8 Better automatic worktree management](https://github.com/voicetreelab/voicetree/issues/8)
+- [#9 Expandable Folder Nodes](https://github.com/voicetreelab/voicetree/issues/9)
+- [#11 Won't open up folder with > 300 files](https://github.com/voicetreelab/voicetree/issues/11)
+
+Roadmap IDs in this document (`Issue #4` ... `Issue #12`) are planning labels, not GitHub issue numbers.
