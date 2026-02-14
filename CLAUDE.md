@@ -104,20 +104,22 @@ See `COMPETITIVE-LANDSCAPE.md` for the full analysis. The closest projects and r
 
 ## Roadmap Summary
 
-**See `TODO.md` for full details.** Phases:
+**See `TODO.md` for full details.** The roadmap has two foundational issues (Phase 0) that everything else depends on:
 
-- **Phase A (Stability)**: Issues #4-6 — MCP port discovery, backend fixes, crash recovery
-- **Phase B (Always-On)**: Issues #7-8 — Context-aware ingestion (ScreenPipe), tag-first data model
-- **Phase C (Scale)**: Issues #9-10 — Performance for 10k+ nodes, UX redesign with non-graph navigation
-- **Phase D (Temporal/Visual)**: Issues #11-12 — Temporal graph/history, enhanced visualization
+- **Phase 0 (Foundation)**: Service architecture (#13) + Graph DB data layer (#14) — these fix the root causes, not symptoms
+- **Phase A (Stability)**: Issues #5-6 — Backend quick fixes and crash recovery (worth doing immediately)
+- **Phase B (Always-On)**: Issues #7-8 — Context-aware ingestion, tag-first data model (depends on Phase 0)
+- **Phase C (Scale)**: Issues #9-10 — Performance for 10k+ nodes, UX redesign (depends on graph DB)
+- **Phase D (Temporal/Visual)**: Issues #11-12 — Temporal graph/history, enhanced visualization (depends on graph DB)
 
-## GitHub Issues
+## GitHub Issues (Coldaine fork)
 
 All issues: https://github.com/Coldaine/voicetree/issues
 
 | Phase | Issue | Title |
 |-------|-------|-------|
-| A | [#4](https://github.com/Coldaine/voicetree/issues/4) | MCP Port Discovery |
+| 0 | [#13](https://github.com/Coldaine/voicetree/issues/13) | Service Architecture (daemon model, MCP discovery) |
+| 0 | [#15](https://github.com/Coldaine/voicetree/issues/15) | Data Layer (graph DB under markdown) |
 | A | [#5](https://github.com/Coldaine/voicetree/issues/5) | Critical Backend Fixes |
 | A | [#6](https://github.com/Coldaine/voicetree/issues/6) | Crash Recovery |
 | B | [#7](https://github.com/Coldaine/voicetree/issues/7) | Always-On Context-Aware Ingestion |
