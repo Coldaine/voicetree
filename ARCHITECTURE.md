@@ -2,6 +2,7 @@
 
 > Implementation-level diagrams, data models, and component specifications.
 > For the high-level vision and decisions, see `NORTH-STAR.md`.
+> For phased implementation plan, see `v2-plan/README.md`.
 
 ---
 
@@ -25,8 +26,7 @@ flowchart TB
     end
 
     subgraph Store["fa:fa-database Data Layer"]
-        graphdb[("fa:fa-project-diagram Graph DB\n Nodes + Typed Edges\n + Temporal History")]
-        vectordb[("fa:fa-search Vector Store\n Embeddings")]
+        falkordb[("fa:fa-project-diagram FalkorDB\n Graph + Vector + Full-Text\n + Temporal History")]
     end
 
     subgraph Query["fa:fa-cogs Query Engine"]
@@ -50,20 +50,20 @@ flowchart TB
 
     normalize --> tag
     tag --> link
-    link --> graphdb
+    link --> falkordb
     link --> embed
-    embed --> vectordb
+    embed --> falkordb
 
-    graphdb --> graph_q
-    vectordb --> vector_q
-    graphdb --> bm25
+    falkordb --> graph_q
+    falkordb --> vector_q
+    falkordb --> bm25
     graph_q --> blend
     vector_q --> blend
     bm25 --> blend
 
     blend --> ui
     blend --> mcp_out
-    graphdb -.->|"on demand"| md_export
+    falkordb -.->|"on demand"| md_export
 
     style Capture fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style Ingestion fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
@@ -185,8 +185,8 @@ flowchart LR
     end
 
     subgraph Write["Commit"]
-        graphwrite["Write node + edges\n to graph DB (ACID)"]
-        vectorwrite["Embed + write\n to vector store"]
+        graphwrite["Write node + edges\n to FalkorDB (ACID)"]
+        embedwrite["Embed + write\n vector to FalkorDB"]
         notify["Notify UI\n via WebSocket"]
     end
 
@@ -203,9 +203,9 @@ flowchart LR
     relations --> context
 
     context --> graphwrite
-    context --> vectorwrite
+    context --> embedwrite
     graphwrite --> notify
-    vectorwrite --> notify
+    embedwrite --> notify
 
     style Input fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style Dedupe fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
@@ -236,6 +236,7 @@ erDiagram
         string node_type "voice | agent | manual | ambient"
         string source_type "whisper | screenpipe | mcp | editor"
         string source_ref "agent_id or session_id"
+        vector embedding "384-dim MiniLM or 1536-dim OpenAI"
         datetime created_at
         datetime modified_at
         json metadata
@@ -274,6 +275,30 @@ erDiagram
     NODE }o--o{ TAG : "tagged with"
 ```
 
+### FalkorDB Cypher Schema
+
+The data model above maps to FalkorDB indexes deployed on startup:
+
+```cypher
+-- Unique constraint on node ID
+CREATE INDEX FOR (n:Node) ON (n.id)
+
+-- Property indexes for fast lookups
+CREATE INDEX FOR (n:Node) ON (n.title)
+CREATE INDEX FOR (n:Node) ON (n.node_type)
+CREATE INDEX FOR (n:Node) ON (n.created_at)
+CREATE INDEX FOR (n:Node) ON (n.vault_id)
+
+-- Full-text index for BM25 search
+CALL db.idx.fulltext.createNodeIndex('Node', 'title', 'content', 'summary')
+
+-- Vector index for semantic search (384 dims for MiniLM-L6-v2)
+CALL db.idx.vector.createNodeIndex('Node', 'embedding', 384, 'cosine')
+```
+
+All vector, keyword, and graph queries run against this single FalkorDB instance.
+See `v2-plan/PHASE-0-FOUNDATION.md` for full schema deployment code.
+
 ---
 
 ## Lifecycle — Startup and Shutdown
@@ -284,7 +309,7 @@ sequenceDiagram
     participant Tray as System Tray
     participant Core as VoiceTree Core
     participant MCP as MCP Server
-    participant DB as Graph DB + Vectors
+    participant DB as FalkorDB (Docker)
     participant UI as WebView UI
 
     Note over OS,UI: Startup (auto-start or manual)
@@ -324,7 +349,7 @@ sequenceDiagram
 
 ## Component Responsibilities
 
-### Core Service (Rust / Tauri backend)
+### Core Service (Node.js / Electron main process)
 
 - **MCP Server**: Fixed-port StreamableHTTP server exposing tools to agents
   - `create_graph` — batch node/edge creation with DAG support
@@ -338,13 +363,13 @@ sequenceDiagram
 - **Project Router**: Map project paths to vaults, manage multi-project state
 - **Lifecycle Manager**: System tray, auto-start, graceful shutdown, port management
 
-### Data Layer
+### Data Layer (FalkorDB — graph + vector + full-text unified)
 
-- **Graph DB**: Authoritative store for nodes, typed edges, tags, temporal history
-- **Vector Store**: Embeddings for semantic search (must be embeddable — no sidecar)
+- **FalkorDB (Redis-backed)**: Single authoritative store for nodes, typed edges, tags, temporal history, vector embeddings, and full-text indexes
+- **Docker container**: Managed by Electron — auto-start on launch, graceful shutdown, persistent volume for data
 - **Markdown Export**: On-demand export of vault to human-readable `.md` files with frontmatter
 
-### UI (React in Tauri WebView)
+### UI (React in Electron WebView)
 
 - **Graph View**: Sigma.js WebGL renderer with semantic zoom, filtering, focus mode
 - **Feed View**: Chronological/relevance-sorted node feed (primary navigation)
