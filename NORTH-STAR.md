@@ -252,8 +252,8 @@ The v2 rewrite is phased over 20 weeks. See `v2-plan/README.md` for the full pla
 | 0 — Foundation | Weeks 1–4 | FalkorDB setup, schema, MCP server, lifecycle, migration |
 | 1 — Core Services | Weeks 5–8 | Ingestion pipeline, query engine, project router, MCP tools |
 | 2 — UI Overhaul | Weeks 9–12 | Sigma.js, feed view, search, filters |
-| 3 — Scale & Harden | Weeks 13–16 | Performance tuning, temporal graph, crash recovery, monitoring |
-| 4 — Polish & Ship | Weeks 17–20 | CI/CD, docs, packaging, onboarding UX, lightweight context capture (active window) |
+| 3 — Daemon & Background | Weeks 13–16 | System tray, auto-start, background ingestion (NO ScreenPipe — that's v3.0 product) |
+| 4 — Scale & Polish | Weeks 17–20 | Performance, temporal graph, CI/CD, docs, lightweight context capture (active window) |
 
 ---
 
