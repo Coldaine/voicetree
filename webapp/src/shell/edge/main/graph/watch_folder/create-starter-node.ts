@@ -6,21 +6,22 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode } from '@/pure/graph'
-import { createGraph } from '@/pure/graph'
+import { createEmptyGraph, createGraph } from '@/pure/graph'
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 import type { VTSettings } from '@/pure/settings/types'
 
 /**
  * Creates a starter node when opening an empty folder.
  * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
+ * Returns an empty graph and performs no disk writes when disableStarterNodes is enabled.
  *
  * @param vaultPath - The vault path where the node file will be created
- * @returns Graph containing the new starter node
+ * @returns Graph containing the new starter node, or an empty graph when disabled
  */
 export async function createStarterNode(vaultPath: string): Promise<Graph> {
     const settings: VTSettings = await loadSettings()
     if (settings.disableStarterNodes) {
-        return createGraph({})
+        return createEmptyGraph()
     }
     const template: string = settings.emptyFolderTemplate ?? '# '
 

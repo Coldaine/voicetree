@@ -49,6 +49,7 @@ describe('settings', () => {
       contextNodeMaxDistance: 7,
       askModeContextDistance: 4,
       emptyFolderTemplate: '# Custom template',
+      disableStarterNodes: true,
       vimMode: true,
       hotkeys: DEFAULT_SETTINGS.hotkeys,
       defaultAllowlistPatterns: ['openspec'],
@@ -59,7 +60,10 @@ describe('settings', () => {
     await saveSettings(customSettings);
 
     const secondLoad: VTSettings = await loadSettings();
-    expect(secondLoad).toEqual(customSettings);
+    expect(secondLoad).toEqual({
+      ...DEFAULT_SETTINGS,
+      ...customSettings,
+    });
   });
 
   it('should persist data correctly', async () => {
