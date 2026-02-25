@@ -80,6 +80,8 @@ export interface VTSettings {
     readonly userEmail?: string;
     /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
     readonly emptyFolderTemplate?: string;
+    /** Disable automatic starter node creation when opening an empty write path. */
+    readonly disableStarterNodes?: boolean;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
@@ -125,4 +127,3 @@ export interface VoiceTreeConfig {
     /** Per-folder vault configuration for multi-vault support */
     readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
 }
-

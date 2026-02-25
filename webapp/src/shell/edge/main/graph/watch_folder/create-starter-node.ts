@@ -19,6 +19,9 @@ import type { VTSettings } from '@/pure/settings/types'
  */
 export async function createStarterNode(vaultPath: string): Promise<Graph> {
     const settings: VTSettings = await loadSettings()
+    if (settings.disableStarterNodes) {
+        return createGraph({})
+    }
     const template: string = settings.emptyFolderTemplate ?? '# '
 
     // Format date: "Tuesday, 23 December"
