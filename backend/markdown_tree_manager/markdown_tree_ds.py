@@ -35,6 +35,9 @@ class Node:
         self.tags: list[str] = []  # Support for multiple tags per node
         self.color: Optional[str] = None  # Support for color attribute
         self.skip_title: bool = skip_title  # If true, don't write # title in markdown
+        self.version_history: list[dict[str, Any]] = []  # Version snapshots for temporal tracking
+        self.source_type: Optional[str] = None  # Source attribution (e.g., 'screenpipe', 'voice', 'manual')
+        self.source_ref: Optional[str] = None  # Source reference (e.g., app name, URL)
 
 
 
@@ -53,6 +56,8 @@ class MarkdownTree:
         self.next_node_id: int = 1
         self.output_dir = output_dir
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
+        self.undo_stack: list[dict[str, Any]] = []  # Stack of undo operations
+        self.redo_stack: list[dict[str, Any]] = []  # Stack of redo operations
 
         # Create output directory if it doesn't exist
         # This ensures that any files written to this directory (like transcript_history.txt)
@@ -219,6 +224,14 @@ class MarkdownTree:
         # Increment AFTER successful creation
         self.next_node_id += 1
 
+        # Push undo operation
+        self.undo_stack.append({
+            "type": "create",
+            "node_id": new_node_id,
+            "parent_id": parent_node_id,
+        })
+        self.redo_stack.clear()
+
         # Write markdown for the new node and its parent (if exists)
         nodes_to_update = [new_node_id]
         if parent_node_id is not None:
@@ -249,6 +262,14 @@ class MarkdownTree:
             raise KeyError(f"Node {node_id} not found in tree")
 
         node = self.tree[node_id]
+
+        # Save version snapshot before overwriting
+        node.version_history.append({
+            "content": node.content,
+            "summary": node.summary,
+            "timestamp": node.modified_at.isoformat(),
+        })
+
         node.content = content
         node.summary = summary
         node.modified_at = datetime.now()
@@ -572,13 +593,14 @@ class MarkdownTree:
 
         # Delete markdown file if it exists
         import os
-        markdown_path = os.path.join(self.output_dir, node.filename)
-        if os.path.exists(markdown_path):
-            try:
-                os.unlink(markdown_path)
-                logging.info(f"Deleted markdown file: {markdown_path}")
-            except OSError as e:
-                logging.error(f"Failed to delete markdown file {markdown_path}: {e}")
+        if self.output_dir is not None:
+            markdown_path = os.path.join(self.output_dir, node.filename)
+            if os.path.exists(markdown_path):
+                try:
+                    os.unlink(markdown_path)
+                    logging.info(f"Deleted markdown file: {markdown_path}")
+                except OSError as e:
+                    logging.error(f"Failed to delete markdown file {markdown_path}: {e}")
 
         # Remove from parent's children list
         if node.parent_id is not None and node.parent_id in self.tree:
@@ -609,6 +631,65 @@ class MarkdownTree:
 
         return True
 
+    def get_nodes_by_tag(self, tag: str) -> list[int]:
+        """Find all nodes with the given tag."""
+        return [nid for nid, node in self.tree.items() if tag in node.tags]
+
+    def get_all_tags(self) -> list[str]:
+        """Return all unique tags across all nodes."""
+        tags: set[str] = set()
+        for node in self.tree.values():
+            tags.update(node.tags)
+        return sorted(tags)
+
+    def get_changes_since(self, since: datetime) -> list[int]:
+        """Return node IDs modified or created after the given timestamp."""
+        return [
+            nid for nid, node in self.tree.items()
+            if node.modified_at > since or node.created_at > since
+        ]
+
+    def undo(self) -> None:
+        """Undo the last tree operation."""
+        if not self.undo_stack:
+            return
+        op = self.undo_stack.pop()
+        if op["type"] == "create":
+            node_id = op["node_id"]
+            if node_id in self.tree:
+                # Save node data for redo
+                node = self.tree[node_id]
+                op["node_data"] = {
+                    "name": node.title,
+                    "content": node.content,
+                    "summary": node.summary,
+                    "parent_id": node.parent_id,
+                }
+                # Remove from parent's children
+                if node.parent_id is not None and node.parent_id in self.tree:
+                    parent = self.tree[node.parent_id]
+                    if node_id in parent.children:
+                        parent.children.remove(node_id)
+                del self.tree[node_id]
+            self.redo_stack.append(op)
+
+    def redo(self) -> None:
+        """Redo the last undone operation."""
+        if not self.redo_stack:
+            return
+        op = self.redo_stack.pop()
+        if op["type"] == "create" and "node_data" in op:
+            data = op["node_data"]
+            node_id = op["node_id"]
+            node = Node(data["name"], node_id, data["content"], data["summary"],
+                        parent_id=data["parent_id"])
+            self.tree[node_id] = node
+            if data["parent_id"] is not None and data["parent_id"] in self.tree:
+                parent = self.tree[data["parent_id"]]
+                if node_id not in parent.children:
+                    parent.children.append(node_id)
+            self.undo_stack.append(op)
+
     def to_dict(self) -> dict[str, Any]:
         """
         Serialize the MarkdownTree to a dictionary for API transmission.
@@ -624,7 +705,9 @@ class MarkdownTree:
                         "summary": str,
                         "parent_id": Optional[int],
                         "children": list[int],
-                        "relationships": dict[int, str]
+                        "relationships": dict[int, str],
+                        "tags": list[str],
+                        "version_count": int
                     }
                 }
             }
@@ -638,7 +721,9 @@ class MarkdownTree:
                 "summary": node.summary,
                 "parent_id": node.parent_id,
                 "children": node.children,
-                "relationships": node.relationships
+                "relationships": node.relationships,
+                "tags": node.tags,
+                "version_count": len(node.version_history),
             }
 
         return {"tree": tree_dict}

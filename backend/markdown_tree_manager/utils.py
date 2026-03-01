@@ -256,8 +256,40 @@ def map_titles_to_node_ids(titles: list[str], nodes: list[Any], fuzzy_match: boo
     return node_ids
 
 
+def extract_tags_from_content(content: str) -> list[str]:
+    """Extract hashtag-style tags from content.
+
+    Finds #word patterns in content, excluding markdown headers (lines starting with #).
+
+    Args:
+        content: The text content to extract tags from
+
+    Returns:
+        List of tag strings (without the # prefix)
+    """
+    if not content:
+        return []
+
+    tags: list[str] = []
+    for line in content.split('\n'):
+        stripped = line.strip()
+        # Skip markdown headers (lines that start with #)
+        if stripped.startswith('#') and ' ' in stripped:
+            # Check if first word is all # chars (markdown header)
+            first_word = stripped.split(' ', 1)[0]
+            if all(c == '#' for c in first_word):
+                continue
+        # Find hashtag patterns: #word (not preceded by other word chars)
+        matches = re.findall(r'(?:^|(?<=\s))#([a-zA-Z]\w*)', stripped)
+        tags.extend(matches)
+
+    return tags
+
+
 def generate_filename_from_keywords(node_title: str, max_keywords: int = 3) -> str:
     """Generate a filename from node title by cleaning and formatting it.
+
+
 
     Args:
         node_title: The title to convert to filename
