@@ -74,7 +74,9 @@ async function exposeElectronAPI(): Promise<void> {
 
         // Backend log streaming
         onBackendLog: (callback) => {
-            ipcRenderer.on('backend-log', (_event, log) => callback(log));
+            const handler: (_event: Electron.IpcRendererEvent, log: string) => void = (_event, log) => callback(log);
+            ipcRenderer.on('backend-log', handler);
+            return () => ipcRenderer.off('backend-log', handler);
         },
 
         // Functional graph API (Phase 3)

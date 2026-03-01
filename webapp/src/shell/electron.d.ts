@@ -40,8 +40,8 @@ export interface ElectronAPI {
     onExit: (callback: (terminalId: string, code: number) => void) => () => void;
   };
 
-  // Backend log streaming
-  onBackendLog: (callback: (log: string) => void) => void;
+  // Backend log streaming (returns cleanup function)
+  onBackendLog: (callback: (log: string) => void) => () => void;
 
   // Functional graph API - event listeners only
   graph: {

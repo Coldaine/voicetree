@@ -132,7 +132,17 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       //console.log('[TextToTreeServer] Shutting down server...');
       try {
         this.serverProcess.kill('SIGTERM');
-        this.serverProcess.kill('SIGKILL');
+        // Give the process time to exit gracefully before forcing kill
+        const proc = this.serverProcess;
+        setTimeout(() => {
+          try {
+            if (proc && !proc.killed) {
+              proc.kill('SIGKILL');
+            }
+          } catch {
+            // Process may have already exited
+          }
+        }, 5000);
         this.serverProcess = null;
       } catch (error) {
         console.error('[TextToTreeServer] Error killing server:', error);
